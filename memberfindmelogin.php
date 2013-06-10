@@ -3,7 +3,7 @@
 Plugin Name: MemberFindMe Login Connector
 Plugin URI: http://memberfind.me
 Description: Synchronizes MemberFindMe and WordPress login
-Version: 1.0
+Version: 1.1
 Author: SourceFound
 Author URI: http://memberfind.me
 License: GPL2
@@ -131,7 +131,7 @@ function sf_get_avatar($avatar,$id_or_email,$size,$default,$alt) {
 	elseif (is_object($id_or_email)&&!empty($id_or_email->user_id))
 		$uid=get_user_meta(intval($id_or_email->user_id),'SF_ID',true);
 	if (isset($uid)&&$uid)
-		return '<img alt="'.($alt?esc_attr($alt):'').'" onerror="this.src=\'//d7efyznwb7ft3.cloudfront.net/n_ico.jpg\'" src="//d7efyznwb7ft3.cloudfront.net/'.$uid.'_ico.jpg" class="avatar avatar-'.$size.' photo" height="'.$size.'" width="'.$size.'" />';
+		return '<img alt="'.($alt?esc_attr($alt):'').'" onerror="this.src=\'//usr-sourcefoundinc.netdna-ssl.com/n_ico.jpg\'" src="//usr-sourcefoundinc.netdna-ssl.com/'.$uid.'_ico.jpg" class="avatar avatar-'.$size.' photo" height="'.$size.'" width="'.$size.'" />';
 	else
 		return $avatar;
 }
