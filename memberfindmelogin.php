@@ -3,7 +3,7 @@
 Plugin Name: MemberFindMe Login Connector
 Plugin URI: http://memberfind.me
 Description: Synchronizes MemberFindMe and WordPress login
-Version: 1.1
+Version: 1.2
 Author: SourceFound
 Author URI: http://memberfind.me
 License: GPL2
@@ -27,13 +27,18 @@ License: GPL2
 
 function memberfindmelogin_activate() {
 	$set=get_option('sf_set');
-	update_option('sf_set',array_merge($set,array('wpl'=>'/wp-login.php')));
+	$url=preg_replace('/^http[s]?:\\/\\/[^\\/]*/','',site_url('wp-login.php','login_post'));
+	if ($set===false)
+		add_option('sf_set',array('wpl'=>$url));
+	else
+		update_option('sf_set',array_merge($set,array('wpl'=>$url)));
 }
 register_activation_hook(__FILE__,'memberfindmelogin_activate');
 
 function memberfindmelogin_deactivate() {
 	$set=get_option('sf_set');
-	update_option('sf_set',array_merge($set,array('wpl'=>'')));
+	if ($set!==false)
+		update_option('sf_set',array_merge($set,array('wpl'=>'')));
 }
 register_deactivation_hook(__FILE__,'memberfindmelogin_deactivate');
 
@@ -55,7 +60,7 @@ class sf_widget_login extends WP_Widget {
 		if (is_user_logged_in()) {
 			$uid=get_user_meta(get_current_user_id(),'SF_ID',true);
 			echo '<p style="margin-top:0">'.__('Hello').' '.$current_user->display_name.'!</p>'
-				.'<form id="loginform'.$id.'" action="'.esc_url(wp_nonce_url(site_url('wp-login.php','login'),'log-out')).'&action=logout&redirect_to='.esc_url(get_site_url()).'" method="post">'
+				.'<form id="loginform'.$id.'" action="'.esc_url(wp_nonce_url(site_url('wp-login.php','login_post'),'log-out')).'&action=logout&redirect_to='.esc_url(get_site_url()).'" method="post">'
 				.'<input type="submit" class="button-primary" value="'.__('Log Out').'" />'
 				.'</form>';
 		} else
@@ -83,8 +88,8 @@ class sf_widget_login extends WP_Widget {
 	}
 	public function form($instance) {
 		$instance=wp_parse_args($instance,array('title'=>'','url'=>''));
-		echo '<p><label for="'.$this->get_field_id('title').'">Title:</label><input class="widefat" id="'.$this->get_field_id('title').'" name="'.$this->get_field_name('title').'" type="text" value="'.attribute_escape($instance['title']).'" /></p>'
-			.'<p><label for="'.$this->get_field_id('url').'">Redirect URL:</label><input class="widefat" id="'.$this->get_field_id('url').'" name="'.$this->get_field_name('url').'" type="text" value="'.attribute_escape($instance['url']).'" placeholder="empty=current page" /></p>';
+		echo '<p><label for="'.$this->get_field_id('title').'">Title:</label><input class="widefat" id="'.$this->get_field_id('title').'" name="'.$this->get_field_name('title').'" type="text" value="'.esc_attr($instance['title']).'" /></p>'
+			.'<p><label for="'.$this->get_field_id('url').'">Redirect URL:</label><input class="widefat" id="'.$this->get_field_id('url').'" name="'.$this->get_field_name('url').'" type="text" value="'.esc_attr($instance['url']).'" placeholder="empty=current page" /></p>';
 	}
 }
 function sf_widget_login_init() {
@@ -106,7 +111,7 @@ function sf_login_init() {
 			$ctx=stream_context_create($opt);
 			for ($try=0,$rsp=false;$rsp===false&&$try<3;$try++) {
 				if ($try) usleep(100000);
-				$rsp=file_get_contents('https://www.sourcefound.com/fi/usr.php',false,$ctx);
+				$rsp=file_get_contents('https://www.sourcefound.com/fi/usr',false,$ctx);
 			}
 			if ($rsp&&($rsp=json_decode($rsp,true))&&isset($rsp['uid'])&&$rsp['uid']&&(($id=email_exists($eml))||($id=$new=wp_create_user($rsp['uid'],$pwd,$eml)))) {
 				$_POST['log']=$rsp['uid'];
