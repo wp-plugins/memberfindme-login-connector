@@ -3,7 +3,7 @@
 Plugin Name: MemberFindMe Login Connector
 Plugin URI: http://memberfind.me
 Description: Synchronizes MemberFindMe and WordPress login
-Version: 1.2
+Version: 1.3
 Author: SourceFound
 Author URI: http://memberfind.me
 License: GPL2
@@ -102,6 +102,10 @@ function sf_login_init() {
 	if (($set=get_option('sf_set'))&&isset($set['org'])&&$set['org']&&isset($set['wpl'])&&$set['wpl']) {
 		if ($act=='logout') {
 			setcookie('SFSF',' ',time()+8640000,'/');
+		} else if ($act=='sf_logout') {
+			setcookie('SFSF',' ',time()+8640000,'/');
+			wp_logout();
+			die();
 		} else if ($act=='login'&&isset($_POST['log'])&&isset($_POST['pwd'])) {
 			$IP=isset($_SERVER['HTTP_X_FORWARDED_FOR'])?$_SERVER['HTTP_X_FORWARDED_FOR']:$_SERVER['REMOTE_ADDR'];
 			$eml=trim(strtolower($_POST['log']));
