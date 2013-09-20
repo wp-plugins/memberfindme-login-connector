@@ -4,7 +4,7 @@ Donate link: http://memberfind.me
 Tags: memberfindme, login, member directory, membership management
 Requires at least: 3.0.1
 Tested up to: 3.5.1
-Stable tag: 1.3.1
+Stable tag: 1.4
 License: GPL2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -18,8 +18,10 @@ This plugin supplements the main MemberFindMe plugin (version 1.2 and up) to pro
 
 * Creates a new user account on WordPress (if account does not already exist) upon member login or signup
 * Replaces Gravatar with the member's MemberFindMe avatar
-* Enable member only access to specific posts/pages by placing the [memberonly] shortcode anywhere in the content
+* Enable member only access to specific posts/pages using the [memberonly] shortcode
 * Adds a login/logout widget
+
+To restrict the content of the entire post/page to members, place the [memberonly] shortcode at the beginning of the post. Placing the [memberonly] shortcode within the page will allow content above the shortcode to be displayed to non-members, and content below the shortcode to be restricted to members.
 
 == Installation ==
 
@@ -30,3 +32,6 @@ This plugin supplements the main MemberFindMe plugin (version 1.2 and up) to pro
 
 = 1.0 =
 * Initial release
+
+= 1.4 =
+* Allows partial non-member access

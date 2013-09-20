@@ -3,7 +3,7 @@
 Plugin Name: MemberFindMe Login Connector
 Plugin URI: http://memberfind.me
 Description: Synchronizes MemberFindMe and WordPress login
-Version: 1.3.1
+Version: 1.4
 Author: SourceFound
 Author URI: http://memberfind.me
 License: GPL2
@@ -117,9 +117,10 @@ function sf_login_init() {
 				if ($try) usleep(100000);
 				$rsp=@file_get_contents('https://www.sourcefound.com/fi/usr',false,$ctx);
 			}
-			if ($rsp&&($rsp=json_decode($rsp,true))&&isset($rsp['uid'])&&$rsp['uid']&&(($id=email_exists($eml))||($id=$new=wp_create_user($rsp['uid'],$pwd,$eml)))) {
+			if ($rsp&&($rsp=json_decode($rsp,true))&&isset($rsp['uid'])&&$rsp['uid']&&(($id=username_exists($rsp['uid']))||($id=$new=wp_create_user($rsp['uid'],$pwd,$eml)))) {
 				$_POST['log']=$rsp['uid'];
-				$doc=array('ID'=>$id,'nickname'=>$rsp['nam'],'user_nicename'=>$rsp['nam'],'display_name'=>$rsp['nam']);
+				$_POST['pwd']=$pwd;
+				$doc=array('ID'=>$id,'nickname'=>$rsp['nam'],'user_nicename'=>$rsp['nam'],'display_name'=>$rsp['nam'],'user_pass'=>$pwd);
 				if (isset($rsp['url'])) $doc['user_url']=$rsp['url'];
 				if ($new&&!isset($rsp['org'])||$rsp['org']!=$set['org']) $doc['show_admin_bar_front']='false';
 				wp_update_user($doc);
@@ -148,8 +149,9 @@ add_filter('get_avatar','sf_get_avatar',99,5);
 
 function sf_memberonly($content) {
 	if (preg_match('/[^\[]\[member[s]?only\]|^\[member[s]?only\]/',$content)) {
-		if (!isset($_COOKIE['SFSF'])||!$_COOKIE['SFSF']||!is_user_logged_in()||!get_user_meta(get_current_user_id(),'SF_ID',true))
-			return '<div class="memberonly">'.__('This content is accessible for members only.').'</div>'
+		if (!isset($_COOKIE['SFSF'])||!$_COOKIE['SFSF']||!is_user_logged_in()||!get_user_meta(get_current_user_id(),'SF_ID',true)) {
+			$arr=preg_split('/[^\[]\[member[s]?only\]|^\[member[s]?only\]/',$content,2);
+			return $arr[0].'<div class="memberonly">'.__('... This content is accessible for members only. Please log in ...').'</div>'
 				.(is_singular()?('<form action="'.esc_url(site_url('wp-login.php','login_post')).'" method="post" style="display:block;margin-top:20px;"><table>'
 				.'<tr class="login-username"><td style="padding-right:10px;">'.__('Email').'</td><td><input type="text" name="log" class="input" size="20" style="width:200px" /></td></tr>'
 				.'<tr class="login-password"><td style="padding-right:10px;">'.__('Password').'</td><td><input type="password" name="pwd" class="input" size="20" style="width:200px" /></td></tr>'
@@ -157,10 +159,11 @@ function sf_memberonly($content) {
 				.'</table>'
 				.'<input type="hidden" name="redirect_to" value="'.esc_url(get_permalink()).'" />'
 				.'</form>'):'');
-		else
+		} else
 			return preg_replace('/[^\[]\[member[s]?only\]|^\[member[s]?only\]/','',$content);
 	} else
 		return $content;
 }
 add_filter('the_content','sf_memberonly',1);
+
 ?>
