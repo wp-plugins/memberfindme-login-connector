@@ -4,7 +4,7 @@ Donate link: http://memberfind.me
 Tags: memberfindme, login, member directory, membership management
 Requires at least: 3.0.1
 Tested up to: 3.5.1
-Stable tag: 1.4
+Stable tag: 1.4.1
 License: GPL2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,4 +34,5 @@ To restrict the content of the entire post/page to members, place the [memberonl
 * Initial release
 
 = 1.4 =
-* Allows partial non-member access
+* Allows partial non-member access to protected pages/posts
+* Improved handling of existing WordPress user accounts
