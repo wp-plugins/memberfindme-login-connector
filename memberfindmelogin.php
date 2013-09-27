@@ -3,7 +3,7 @@
 Plugin Name: MemberFindMe Login Connector
 Plugin URI: http://memberfind.me
 Description: Synchronizes MemberFindMe and WordPress login
-Version: 1.4.1
+Version: 1.4.2
 Author: SourceFound
 Author URI: http://memberfind.me
 License: GPL2
@@ -106,7 +106,7 @@ function sf_login_init() {
 			setcookie('SFSF',' ',time()+8640000,'/');
 			wp_logout();
 			die();
-		} else if ($act=='login'&&isset($_POST['log'])&&isset($_POST['pwd'])&&!username_exists($_POST['log'])) {
+		} else if ($act=='login'&&isset($_POST['log'])&&isset($_POST['pwd'])) {
 			$IP=isset($_SERVER['HTTP_X_FORWARDED_FOR'])?$_SERVER['HTTP_X_FORWARDED_FOR']:$_SERVER['REMOTE_ADDR'];
 			$eml=trim(strtolower($_POST['log']));
 			$pwd=trim(strtolower($_POST['pwd']));
@@ -117,15 +117,16 @@ function sf_login_init() {
 				if ($try) usleep(100000);
 				$rsp=@file_get_contents('https://www.sourcefound.com/fi/usr',false,$ctx);
 			}
-			if ($rsp&&($rsp=json_decode($rsp,true))&&isset($rsp['uid'])&&$rsp['uid']&&(($id=username_exists($rsp['uid']))||($id=$new=wp_create_user($rsp['uid'],$pwd,$eml)))) {
-				$_POST['log']=$rsp['uid'];
-				$_POST['pwd']=$pwd;
-				$doc=array('ID'=>$id,'nickname'=>$rsp['nam'],'user_nicename'=>$rsp['nam'],'display_name'=>$rsp['nam'],'user_pass'=>$pwd);
-				if (isset($rsp['url'])) $doc['user_url']=$rsp['url'];
-				if ($new&&!isset($rsp['org'])||$rsp['org']!=$set['org']) $doc['show_admin_bar_front']='false';
-				wp_update_user($doc);
-				if ($new)
-					update_user_meta($id,'SF_ID',$rsp['uid']);
+			if ($rsp&&($rsp=json_decode($rsp,true))&&!empty($rsp['uid'])) {
+				if (!($id=username_exists($_POST['log']))&&(($id=username_exists($rsp['uid']))||($id=$new=wp_create_user($rsp['uid'],$pwd,$eml)))) {
+					$_POST['log']=$rsp['uid'];
+					$_POST['pwd']=$pwd;
+					$doc=array('ID'=>$id,'nickname'=>$rsp['nam'],'user_nicename'=>$rsp['nam'],'display_name'=>$rsp['nam'],'user_pass'=>$pwd);
+					if (isset($rsp['url'])) $doc['user_url']=$rsp['url'];
+					if (!empty($new)&&!isset($rsp['org'])||$rsp['org']!=$set['org']) $doc['show_admin_bar_front']='false';
+					wp_update_user($doc);
+				}
+				update_user_meta($id,'SF_ID',$rsp['uid']);
 				setcookie('SFSF',$rsp['SF'],time()+8640000,'/');
 			} else if ($id=email_exists($eml))
 				delete_user_meta($id,'SF_ID');
