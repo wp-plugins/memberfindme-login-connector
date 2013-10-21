@@ -3,7 +3,7 @@
 Plugin Name: MemberFindMe Login Connector
 Plugin URI: http://memberfind.me
 Description: Synchronizes MemberFindMe and WordPress login
-Version: 1.4.2
+Version: 1.5
 Author: SourceFound
 Author URI: http://memberfind.me
 License: GPL2
@@ -25,22 +25,7 @@ License: GPL2
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-function memberfindmelogin_activate() {
-	$set=get_option('sf_set');
-	$url=preg_replace('/^http[s]?:\\/\\/[^\\/]*/','',site_url('wp-login.php','login_post'));
-	if ($set===false)
-		add_option('sf_set',array('wpl'=>$url));
-	else
-		update_option('sf_set',array_merge($set,array('wpl'=>$url)));
-}
-register_activation_hook(__FILE__,'memberfindmelogin_activate');
-
-function memberfindmelogin_deactivate() {
-	$set=get_option('sf_set');
-	if ($set!==false)
-		update_option('sf_set',array_merge($set,array('wpl'=>'')));
-}
-register_deactivation_hook(__FILE__,'memberfindmelogin_deactivate');
+define('SF_WPL',1);
 
 class sf_widget_login extends WP_Widget {
 	public function __construct() {
@@ -99,7 +84,7 @@ add_action('widgets_init','sf_widget_login_init');
 
 function sf_login_init() {
 	$act=isset($_REQUEST['action'])?$_REQUEST['action']:'login';
-	if (($set=get_option('sf_set'))&&isset($set['org'])&&$set['org']&&isset($set['wpl'])&&$set['wpl']) {
+	if (($set=get_option('sf_set'))&&!empty($set['org'])&&defined('SF_WPL')) {
 		if ($act=='logout') {
 			setcookie('SFSF',' ',time()+8640000,'/');
 		} else if ($act=='sf_logout') {
@@ -110,14 +95,11 @@ function sf_login_init() {
 			$IP=isset($_SERVER['HTTP_X_FORWARDED_FOR'])?$_SERVER['HTTP_X_FORWARDED_FOR']:$_SERVER['REMOTE_ADDR'];
 			$eml=trim(strtolower($_POST['log']));
 			$pwd=trim(strtolower($_POST['pwd']));
-			$pst=http_build_query(array('eml'=>$eml,'pwd'=>$pwd,'org'=>$set['org']));
-			$opt=array('http'=>array('method'=>'POST','header'=>"Content-type: application/x-www-form-urlencoded\r\nContent-Length: ".strlen($pst)."\r\nFrom: ".$IP,'user_agent'=>$_SERVER['HTTP_USER_AGENT'],'content'=>$pst));
-			$ctx=stream_context_create($opt);
-			for ($try=0,$rsp=false;$rsp===false&&$try<3;$try++) {
-				if ($try) usleep(100000);
-				$rsp=@file_get_contents('https://www.sourcefound.com/fi/usr',false,$ctx);
-			}
-			if ($rsp&&($rsp=json_decode($rsp,true))&&!empty($rsp['uid'])) {
+			do {
+				if (empty($try)) $try=0; else usleep(100000);
+				$rsp=wp_remote_post('https://www.sourcefound.com/fi/usr',array('method'=>'POST','headers'=>array('from'=>$IP),'user-agent'=>$_SERVER['HTTP_USER_AGENT'],'body'=>array('eml'=>$eml,'pwd'=>$pwd,'org'=>$set['org'])));
+			} while (is_wp_error($rsp)&&($try++)<3);
+			if (!is_wp_error($rsp)&&($rsp=json_decode($rsp['body'],true))&&!empty($rsp['uid'])) {
 				if (!($id=username_exists($_POST['log']))&&(($id=username_exists($rsp['uid']))||($id=$new=wp_create_user($rsp['uid'],$pwd,$eml)))) {
 					$_POST['log']=$rsp['uid'];
 					$_POST['pwd']=$pwd;
@@ -128,8 +110,9 @@ function sf_login_init() {
 				}
 				update_user_meta($id,'SF_ID',$rsp['uid']);
 				setcookie('SFSF',$rsp['SF'],time()+8640000,'/');
-			} else if ($id=email_exists($eml))
+			} else if ($id=email_exists($eml)) {
 				delete_user_meta($id,'SF_ID');
+			}
 		}
 	}
 }
