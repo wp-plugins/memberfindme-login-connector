@@ -2,8 +2,8 @@
 /*
 Plugin Name: MemberFindMe Login Connector
 Plugin URI: http://memberfind.me
-Description: Synchronizes MemberFindMe and WordPress login
-Version: 1.5
+Description: Connects MemberFindMe membership system with WordPress user accounts and login
+Version: 1.6
 Author: SourceFound
 Author URI: http://memberfind.me
 License: GPL2
@@ -132,10 +132,18 @@ function sf_get_avatar($avatar,$id_or_email,$size,$default,$alt) {
 add_filter('get_avatar','sf_get_avatar',99,5);
 
 function sf_memberonly($content) {
-	if (preg_match('/[^\[]\[member[s]?only\]|^\[member[s]?only\]/',$content)) {
+	for ($i=0;($x=strpos($content,'[memberonly',$i))!==false||($x=strpos($content,'[membersonly',$i))!==false;$i=$x+1) {
+		$y=strpos($content,']',$x);
+		if ((!$x||substr($content,$x-1,1)!='[')&&$y!==false) break;
+	}
+	if ($x!==false&&$y!==false) {
+		$mat=array();
+		preg_match_all('/\s([a-z]*)="([^"]*)"/',substr($content,$x+1,$y-$x-1),$mat,PREG_PATTERN_ORDER);
+		$opt=array();
+		foreach ($mat[1] as $key=>$val) $opt[$val]=$mat[2][$key];
 		if (!isset($_COOKIE['SFSF'])||!$_COOKIE['SFSF']||!is_user_logged_in()||!get_user_meta(get_current_user_id(),'SF_ID',true)) {
-			$arr=preg_split('/[^\[]\[member[s]?only\]|^\[member[s]?only\]/',$content,2);
-			return $arr[0].'<div class="memberonly">'.__('... This content is accessible for members only. Please log in ...').'</div>'
+			return substr($content,0,$x)
+				.'<div class="memberonly">'.__('... This content is accessible for members only. Please log in ...').'</div>'
 				.(is_singular()?('<form action="'.esc_url(site_url('wp-login.php','login_post')).'" method="post" style="display:block;margin-top:20px;"><table>'
 				.'<tr class="login-username"><td style="padding-right:10px;">'.__('Email').'</td><td><input type="text" name="log" class="input" size="20" style="width:200px" /></td></tr>'
 				.'<tr class="login-password"><td style="padding-right:10px;">'.__('Password').'</td><td><input type="password" name="pwd" class="input" size="20" style="width:200px" /></td></tr>'
@@ -143,8 +151,21 @@ function sf_memberonly($content) {
 				.'</table>'
 				.'<input type="hidden" name="redirect_to" value="'.esc_url(get_permalink()).'" />'
 				.'</form>'):'');
+		} else if ((!empty($opt['label'])||!empty($opt['level']))&&($set=get_option('sf_set'))&&!empty($set['org'])) {
+			$arr=split(',',empty($opt['label'])?$opt['level']:$opt['label']);
+			$lbl=array();
+			foreach ($arr as $val) if (trim(urldecode($val))) $lbl[]=urlencode(trim(urldecode($val)));
+			do {
+				if (empty($try)) $try=0; else usleep(100000);
+				$rsp=wp_remote_get('https://www.sourcefound.com/fi/usr?org='.$set['org'].'&sfsf='.$_COOKIE['SFSF'].'&lbl='.implode(',',$lbl),array('headers'=>array('from'=>$IP),'user-agent'=>$_SERVER['HTTP_USER_AGENT']));
+			} while (is_wp_error($rsp)&&($try++)<3);
+			if (!is_wp_error($rsp)&&($rsp=json_decode($rsp['body'],true))&&count($rsp))
+				return substr_replace($content,'',$x,$y-$x+1);
+			else 
+				return substr($content,0,$x)
+					.'<div class="memberonly">'.__('... This content is not accessible for your membership level ...').'</div>';
 		} else
-			return preg_replace('/[^\[]\[member[s]?only\]|^\[member[s]?only\]/','',$content);
+			return substr_replace($content,'',$x,$y-$x+1);
 	} else
 		return $content;
 }

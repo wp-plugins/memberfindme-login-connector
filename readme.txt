@@ -3,8 +3,8 @@ Contributors: sourcefound
 Donate link: http://memberfind.me
 Tags: memberfindme, membership management, membership, member login, billing, member access, member content
 Requires at least: 3.0.1
-Tested up to: 3.6.1
-Stable tag: 1.5
+Tested up to: 3.7.1
+Stable tag: 1.6
 License: GPL2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -18,10 +18,13 @@ This plugin supplements the main MemberFindMe plugin (version 1.2 and up) to pro
 
 * Creates a new user account on WordPress (if account does not already exist) upon member login or signup
 * Replaces Gravatar with the member's MemberFindMe avatar
-* Enable member only access to specific posts/pages using the [memberonly] shortcode
+* Enable member only access to specific posts/pages
+* Restrict access by membership level or label
 * Adds a login/logout widget
 
 To restrict the content of the entire post/page to members, place the [memberonly] shortcode at the beginning of the post. Placing the [memberonly] shortcode within the page will allow content above the shortcode to be displayed to non-members, and content below the shortcode to be restricted to members.
+
+To restrict access to certain membership levels or labels, use the shortcode [memberonly label="..."], for example [memberonly label="business member"]. You can restrict content to more than 1 label by separating the labels with a comma, for example [memberonly label="membership committee,marketing committee"]. If your label or membership level name contains a comma, you should escape the comma, for example [memberonly label="label%2C1,label%2C2"]. 
 
 == Installation ==
 
@@ -36,3 +39,6 @@ To restrict the content of the entire post/page to members, place the [memberonl
 = 1.4 =
 * Allows partial non-member access to protected pages/posts
 * Improved handling of existing WordPress user accounts
+
+= 1.6 =
+* Allows restricting access by membership level or label
