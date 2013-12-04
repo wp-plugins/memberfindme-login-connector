@@ -3,7 +3,7 @@
 Plugin Name: MemberFindMe Login Connector
 Plugin URI: http://memberfind.me
 Description: Connects MemberFindMe membership system with WordPress user accounts and login
-Version: 1.6
+Version: 1.7
 Author: SourceFound
 Author URI: http://memberfind.me
 License: GPL2
@@ -52,11 +52,11 @@ class sf_widget_login extends WP_Widget {
 			echo '<form id="loginform'.$id.'" action="'.esc_url(site_url('wp-login.php','login_post')).'" method="post">'
 				.'<p class="login-username">'
 					.'<label>'.__('Email').'</label>'
-					.'<input type="text" name="log" class="input" size="20" style="width:200px" />'
+					.'<input type="text" name="log" class="input" size="20" />'
 				.'</p>'
 				.'<p class="login-password">'
 					.'<label>'.__('Password').'</label>'
-					.'<input type="password" name="pwd" class="input" size="20" style="width:200px" />'
+					.'<input type="password" name="pwd" class="input" size="20" />'
 				.'</p>'
 				.'<p class="login-submit">'
 					.'<input type="submit" class="button-primary" value="'.__('Log In').'" />'
@@ -100,16 +100,21 @@ function sf_login_init() {
 				$rsp=wp_remote_post('https://www.sourcefound.com/fi/usr',array('method'=>'POST','headers'=>array('from'=>$IP),'user-agent'=>$_SERVER['HTTP_USER_AGENT'],'body'=>array('eml'=>$eml,'pwd'=>$pwd,'org'=>$set['org'])));
 			} while (is_wp_error($rsp)&&($try++)<3);
 			if (!is_wp_error($rsp)&&($rsp=json_decode($rsp['body'],true))&&!empty($rsp['uid'])) {
-				if (!($id=username_exists($_POST['log']))&&(($id=username_exists($rsp['uid']))||($id=$new=wp_create_user($rsp['uid'],$pwd,$eml)))) {
+				$doc=array('nickname'=>$rsp['nam'],'user_nicename'=>$rsp['nam'],'display_name'=>$rsp['nam'],'user_pass'=>$pwd);
+				if (isset($rsp['url'])) $doc['user_url']=$rsp['url'];
+				$id=username_exists($rsp['uid']);
+				if (is_null($id)) {
+					$id=wp_create_user($rsp['uid'],$pwd,$eml);
+					$doc['show_admin_bar_front']='false';
+				}
+				if (!is_null($id)&&!is_wp_error($id)) {
+					$doc['ID']=$id;
+					wp_update_user($doc);
+					update_user_meta($id,'SF_ID',$rsp['uid']);
+					setcookie('SFSF',$rsp['SF'],time()+8640000,'/');
 					$_POST['log']=$rsp['uid'];
 					$_POST['pwd']=$pwd;
-					$doc=array('ID'=>$id,'nickname'=>$rsp['nam'],'user_nicename'=>$rsp['nam'],'display_name'=>$rsp['nam'],'user_pass'=>$pwd);
-					if (isset($rsp['url'])) $doc['user_url']=$rsp['url'];
-					if (!empty($new)&&!isset($rsp['org'])||$rsp['org']!=$set['org']) $doc['show_admin_bar_front']='false';
-					wp_update_user($doc);
 				}
-				update_user_meta($id,'SF_ID',$rsp['uid']);
-				setcookie('SFSF',$rsp['SF'],time()+8640000,'/');
 			} else if ($id=email_exists($eml)) {
 				delete_user_meta($id,'SF_ID');
 			}
@@ -141,7 +146,9 @@ function sf_memberonly($content) {
 		preg_match_all('/\s([a-z]*)="([^"]*)"/',substr($content,$x+1,$y-$x-1),$mat,PREG_PATTERN_ORDER);
 		$opt=array();
 		foreach ($mat[1] as $key=>$val) $opt[$val]=$mat[2][$key];
-		if (!isset($_COOKIE['SFSF'])||!$_COOKIE['SFSF']||!is_user_logged_in()||!get_user_meta(get_current_user_id(),'SF_ID',true)) {
+		if (current_user_can('edit_post')) {
+			return substr_replace($content,'[content below ',$x,1);
+		} else if (!isset($_COOKIE['SFSF'])||!$_COOKIE['SFSF']||!is_user_logged_in()||!get_user_meta(get_current_user_id(),'SF_ID',true)) {
 			return substr($content,0,$x)
 				.'<div class="memberonly">'.__('... This content is accessible for members only. Please log in ...').'</div>'
 				.(is_singular()?('<form action="'.esc_url(site_url('wp-login.php','login_post')).'" method="post" style="display:block;margin-top:20px;"><table>'
@@ -164,8 +171,9 @@ function sf_memberonly($content) {
 			else 
 				return substr($content,0,$x)
 					.'<div class="memberonly">'.__('... This content is not accessible for your membership level ...').'</div>';
-		} else
+		} else {
 			return substr_replace($content,'',$x,$y-$x+1);
+		}
 	} else
 		return $content;
 }

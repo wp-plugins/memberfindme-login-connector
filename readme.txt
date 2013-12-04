@@ -4,7 +4,7 @@ Donate link: http://memberfind.me
 Tags: memberfindme, membership management, membership, member login, billing, member access, member content
 Requires at least: 3.0.1
 Tested up to: 3.7.1
-Stable tag: 1.6
+Stable tag: 1.7
 License: GPL2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -42,3 +42,7 @@ To restrict access to certain membership levels or labels, use the shortcode [me
 
 = 1.6 =
 * Allows restricting access by membership level or label
+
+= 1.7 =
+* Allows administrator to see member only content
+* Improved handling of email conflicts
