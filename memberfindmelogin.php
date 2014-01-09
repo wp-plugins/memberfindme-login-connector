@@ -3,7 +3,7 @@
 Plugin Name: MemberFindMe Login Connector
 Plugin URI: http://memberfind.me
 Description: Connects MemberFindMe membership system with WordPress user accounts and login
-Version: 1.7
+Version: 1.8
 Author: SourceFound
 Author URI: http://memberfind.me
 License: GPL2
@@ -105,10 +105,13 @@ function sf_login_init() {
 				$id=username_exists($rsp['uid']);
 				if (is_null($id)) {
 					$id=wp_create_user($rsp['uid'],$pwd,$eml);
+					if (is_wp_error($id)&&$id->get_error_code()=='existing_user_email')
+						$id=wp_create_user($rsp['uid'],$pwd);
 					$doc['show_admin_bar_front']='false';
 				}
 				if (!is_null($id)&&!is_wp_error($id)) {
 					$doc['ID']=$id;
+					$doc['user_email']=$eml;
 					wp_update_user($doc);
 					update_user_meta($id,'SF_ID',$rsp['uid']);
 					setcookie('SFSF',$rsp['SF'],time()+8640000,'/');
@@ -147,10 +150,10 @@ function sf_memberonly($content) {
 		$opt=array();
 		foreach ($mat[1] as $key=>$val) $opt[$val]=$mat[2][$key];
 		if (current_user_can('edit_post')) {
-			return substr_replace($content,'[content below ',$x,1);
-		} else if (!isset($_COOKIE['SFSF'])||!$_COOKIE['SFSF']||!is_user_logged_in()||!get_user_meta(get_current_user_id(),'SF_ID',true)) {
+			return substr_replace($content,'[administrator info: content below ',$x,1);
+		} else if (!is_user_logged_in()||!get_user_meta(get_current_user_id(),'SF_ID',true)) {
 			return substr($content,0,$x)
-				.'<div class="memberonly">'.__('... This content is accessible for members only. Please log in ...').'</div>'
+				.'<div class="memberonly">'.__('... This content is accessible for'.(!empty($opt['label'])||!empty($opt['level'])?' certain':'').' members only. Please log in ...').'</div>'
 				.(is_singular()?('<form action="'.esc_url(site_url('wp-login.php','login_post')).'" method="post" style="display:block;margin-top:20px;"><table>'
 				.'<tr class="login-username"><td style="padding-right:10px;">'.__('Email').'</td><td><input type="text" name="log" class="input" size="20" style="width:200px" /></td></tr>'
 				.'<tr class="login-password"><td style="padding-right:10px;">'.__('Password').'</td><td><input type="password" name="pwd" class="input" size="20" style="width:200px" /></td></tr>'
@@ -158,6 +161,7 @@ function sf_memberonly($content) {
 				.'</table>'
 				.'<input type="hidden" name="redirect_to" value="'.esc_url(get_permalink()).'" />'
 				.'</form>'):'');
+			setcookie('SFSF',' ',time()+8640000,'/');
 		} else if ((!empty($opt['label'])||!empty($opt['level']))&&($set=get_option('sf_set'))&&!empty($set['org'])) {
 			$arr=split(',',empty($opt['label'])?$opt['level']:$opt['label']);
 			$lbl=array();
