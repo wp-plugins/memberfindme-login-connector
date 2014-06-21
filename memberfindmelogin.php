@@ -3,7 +3,7 @@
 Plugin Name: MemberFindMe Login Connector
 Plugin URI: http://memberfind.me
 Description: Connects MemberFindMe membership system with WordPress user accounts and login
-Version: 2.0
+Version: 2.1
 Author: SourceFound
 Author URI: http://memberfind.me
 License: GPL2
@@ -78,7 +78,7 @@ $SF_widget_login='<div class="login-choose" style="display:none"></div>'
 		.'}else{alert("Login System Error");}'
 	.'}};'
 	.'i=String.fromCharCode(38);'
-	.'if(!act)xml.send("action=login"+i+"log="+log+i+"pwd="+pwd);'
+	.'if(!act)xml.send("action=login"+i+"log="+log+i+"pwd="+pwd+i+"redirect_to="+encodeURIComponent(location.href));'
 	.'else xml.send("action=retrievepassword"+i+"user_login="+log+(uid?(i+"uid="+uid):""));'
 	.'return false;'
 .'}</script>';
@@ -106,9 +106,10 @@ class sf_widget_login extends WP_Widget {
 		if (!empty($title))
 			echo $before_title.$title.$after_title;
 		if (is_user_logged_in()) {
+			$set=get_option('sf_set');
 			$uid=get_user_meta(get_current_user_id(),'SF_ID',true);
 			echo '<p style="margin-top:0">'.__('Hello').' '.$current_user->display_name.'!</p>'
-				.'<form id="loginform'.$id.'" action="'.esc_url(wp_nonce_url(site_url('wp-login.php','login_post'),'log-out')).'&action=logout&redirect_to='.esc_url(get_site_url()).'" method="post">'
+				.'<form id="loginform'.$id.'" action="'.esc_url(wp_nonce_url(site_url('wp-login.php','login_post'),'log-out')).'&action=logout&redirect_to='.esc_url(empty($set['out'])?get_site_url():$set['out']).'" method="post">'
 				.'<input type="submit" class="button-primary" value="'.__('Log Out').'" />'
 				.'</form>';
 		} else {
