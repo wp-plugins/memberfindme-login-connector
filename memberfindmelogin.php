@@ -3,7 +3,7 @@
 Plugin Name: MemberFindMe Login Connector
 Plugin URI: http://memberfind.me
 Description: Connects MemberFindMe membership system with WordPress user accounts and login
-Version: 2.1
+Version: 2.2
 Author: SourceFound
 Author URI: http://memberfind.me
 License: GPL2
@@ -185,6 +185,7 @@ add_action('login_form_logout','sf_login');
 
 function sf_password() {
 	if (!empty($_POST['user_login'])&&strpos($_POST['user_login'],'@')&&($set=get_option('sf_set'))&&!empty($set['org'])&&defined('SF_WPL')) {
+		$IP=isset($_SERVER['HTTP_X_FORWARDED_FOR'])?$_SERVER['HTTP_X_FORWARDED_FOR']:$_SERVER['REMOTE_ADDR'];
 		for($try=0;!$try||(is_wp_error($rsp)&&$try<3);$try++) {
 			if ($try) usleep(100000);
 			$rsp=wp_remote_get('https://www.sourcefound.com/api?fi=usr&org='.$set['org'].'&pwd&eml='.urlencode($_POST['user_login']).(empty($_POST['uid'])?'':'&uid='.($_POST['uid'])),array('headers'=>array('from'=>$IP),'user-agent'=>$_SERVER['HTTP_USER_AGENT']));
@@ -235,6 +236,7 @@ function sf_memberonly($content) {
 		if ((!$x||substr($content,$x-1,1)!='[')&&$y!==false) break;
 	}
 	if ($x!==false&&$y!==false) {
+		define('DONOTCACHEPAGE',true);
 		$mat=array();
 		preg_match_all('/\s([a-z\-]*)="([^"]*)"/',substr($content,$x+1,$y-$x-1),$mat,PREG_PATTERN_ORDER);
 		$opt=array();
@@ -274,10 +276,13 @@ function sf_memberonly($content) {
 					.'</div>';
 			}
 			setcookie('SFSF',' ',time()+8640000,'/');
-		} else if ((!empty($opt['label'])||!empty($opt['level']))&&($set=get_option('sf_set'))&&!empty($set['org'])) {
-			$arr=split(',',empty($opt['label'])?$opt['level']:$opt['label']);
+		} else if (($set=get_option('sf_set'))&&!empty($set['org'])) {
+			$IP=isset($_SERVER['HTTP_X_FORWARDED_FOR'])?$_SERVER['HTTP_X_FORWARDED_FOR']:$_SERVER['REMOTE_ADDR'];
 			$lbl=array();
-			foreach ($arr as $val) if (trim(urldecode($val))) $lbl[]=urlencode(trim(urldecode($val)));
+			if (!empty($opt['label'])||!empty($opt['level'])) {
+				$arr=split(',',empty($opt['label'])?$opt['level']:$opt['label']);
+				foreach ($arr as $val) if (trim(urldecode($val))) $lbl[]=urlencode(trim(urldecode($val)));
+			}
 			do {
 				if (empty($try)) $try=0; else usleep(100000);
 				$rsp=wp_remote_get('https://www.sourcefound.com/fi/usr?org='.$set['org'].'&sfsf='.$_COOKIE['SFSF'].'&lbl='.implode(',',$lbl),array('headers'=>array('from'=>$IP),'user-agent'=>$_SERVER['HTTP_USER_AGENT']));
@@ -286,10 +291,9 @@ function sf_memberonly($content) {
 				return substr_replace($content,'',$x,$y-$x+1);
 			else 
 				return substr($content,0,$x)
-					.'<p class="memberonly">'.__('... This content is not accessible for your membership level ...').'</p>';
-		} else {
-			return substr_replace($content,'',$x,$y-$x+1);
-		}
+					.'<p class="memberonly">'.__('... This content is not accessible for your membership level/status ...').'</p>';
+		} else
+			return $content;
 	} else
 		return $content;
 }

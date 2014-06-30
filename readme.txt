@@ -4,7 +4,7 @@ Donate link: http://memberfind.me
 Tags: memberfindme, membership management, membership, member login, billing, member access, member content
 Requires at least: 3.0.1
 Tested up to: 3.9.1
-Stable tag: 2.1
+Stable tag: 2.2
 License: GPL2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -70,3 +70,6 @@ When displaying a membership sign-up form or MemberFindMe form/cart for non-memb
 = 2.1 =
 * Adds support for redirect on logout
 * Fixes issue with ajax login on some sites
+
+= 2.2 =
+* Prevents expired members from viewing member only content
