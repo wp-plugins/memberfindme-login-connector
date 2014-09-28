@@ -277,6 +277,7 @@ function sf_memberonly($content) {
 		if (current_user_can('edit_post')) {
 			return substr_replace($content,'[administrator info: content below ',$x,1);
 		} else if (!is_user_logged_in()||!get_user_meta(get_current_user_id(),'SF_ID',true)) {
+			setcookie('SFSF',' ',time()+8640000,'/');
 			if (!empty($opt['nonmember-redirect'])&&is_singular()) {
 				return substr($content,0,$x)
 					.'<p class="memberonly">'.__(empty($opt['message'])?('... This content is accessible for'.(!empty($opt['label'])||!empty($opt['level'])?' certain':'').' members only ...'):$opt['message']).'</p>'
@@ -308,7 +309,6 @@ function sf_memberonly($content) {
 						.(is_singular()?$SF_widget_login:'')
 					.'</div>';
 			}
-			setcookie('SFSF',' ',time()+8640000,'/');
 		} else if (($set=get_option('sf_set'))&&!empty($set['org'])) {
 			$IP=isset($_SERVER['HTTP_X_FORWARDED_FOR'])?$_SERVER['HTTP_X_FORWARDED_FOR']:$_SERVER['REMOTE_ADDR'];
 			$lbl=array();
