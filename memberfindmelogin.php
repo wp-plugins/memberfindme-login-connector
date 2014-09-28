@@ -3,7 +3,7 @@
 Plugin Name: MemberFindMe Login Connector
 Plugin URI: http://memberfind.me
 Description: Connects MemberFindMe membership system with WordPress user accounts and login
-Version: 2.2
+Version: 3.0
 Author: SourceFound
 Author URI: http://memberfind.me
 License: GPL2
@@ -25,61 +25,65 @@ License: GPL2
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-define('SF_WPL',1);
+define('SF_WPL',3);
 
-$SF_widget_login='<div class="login-choose" style="display:none"></div>'
-.'<div class="login-form">'
+if (is_admin()) {
+	add_action('wp_ajax_nopriv_sf_login','sf_login');
+	add_action('wp_ajax_sf_login','sf_login');
+	add_action('wp_ajax_nopriv_sf_logout','sf_logout');
+	add_action('wp_ajax_sf_logout','sf_logout');
+	add_action('wp_ajax_nopriv_sf_password','sf_password');
+	add_action('wp_ajax_sf_password','sf_password');
+}
+
+$SF_widget_login='<div class="login-form">'
 	.'<p class="login-username"><label style="display:block">'.__('Email').'</label><input type="text" name="log" class="input" size="20"></p>'
 	.'<p class="login-password"><label style="display:block">'.__('Password').'</label><input type="password" name="pwd" class="input" size="20"></p>'
 	.'<p class="login-submit">'
-		.'<input type="submit" class="button-primary" value="'.__('Log In').'" onclick="sf_wpl(this.parentNode.parentNode)">'
-		.'<a onclick="this.parentNode.style.display=this.parentNode.parentNode.querySelector(\'.login-password\').style.display=\'none\';this.parentNode.parentNode.querySelector(\'.login-request\').style.display=\'\';">Forgot password?</a>'
+		.'<input type="submit" class="button-primary" value="'.__('Log In').'" onclick="sf_wpl(this.parentNode.parentNode);return false;">'
+		.'<a style="margin-left:10px" onclick="this.parentNode.style.display=this.parentNode.parentNode.querySelector(\'.login-password\').style.display=\'none\';this.parentNode.parentNode.querySelector(\'.login-request\').style.display=\'\';">Forgot password?</a>'
 	.'</p>'
 	.'<p class="login-request" style="display:none">'
-		.'<input type="submit" class="button-primary" value="'.__('Email Password').'" onclick="sf_wpl(this.parentNode.parentNode,\'pwd\')">'
+		.'<input type="submit" class="button-primary" value="'.__('Email Password').'" onclick="sf_wpl(this.parentNode.parentNode,\'pwd\');return false;">'
 	.'</p>'
 .'</div>'
 .'<div style="display:none">'
 	.'<p class="login-message">-</p>'
-	.'<p class="login-ack"><input type="submit" class="button-primary" value="'.__('Continue').'" onclick="this.parentNode.parentNode.style.display=\'none\';this.parentNode.parentNode.parentNode.querySelector(\'.login-form\').style.display=\'\';"></p>'
+	.'<p class="login-ack"><input type="submit" class="button-primary" value="'.__('Continue').'" onclick="this.parentNode.parentNode.style.display=\'none\';this.parentNode.parentNode.parentNode.querySelector(\'.login-form\').style.display=\'\';return false;"></p>'
 .'</div>'
-.'<script>function sf_wpl(n,act,uid){var a,i,log=false,pwd=false,red=false,xml,m=n.parentNode.querySelector(".login-message");'
+.'<script>function sf_wpl(n,act,uid){var a,i,log=false,pwd=false,red=false,xml,f=n.parentNode.querySelector(".login-form"),m=n.parentNode.querySelector(".login-message");'
 	.'for(a=n.parentNode.querySelectorAll("input"),i=0;i<a.length;i++)if(a[i].name){if(a[i].name=="log")log=encodeURIComponent(a[i].value);else if(a[i].name=="pwd"){if(act)a[i].value="";else pwd=encodeURIComponent(a[i].value);}else if (a[i].name=="red")red=a[i].value;}'
 	.'if(!log){alert("'.__('Please enter your email address').'");return false;}'
 	.'if(!(act||pwd)){alert("'.__('Please enter your password').'");return false;}'
-	.'m.innerHTML="Please wait...";'
-	.'n.style.display=m.parentNode.querySelector(".login-ack").style.display="none";'
+	.'f.style.display=m.parentNode.querySelector(".login-ack").style.display="none";'
 	.'m.parentNode.style.display="";'
+	.'m.innerHTML="Please wait...";'
 	.'xml=new XMLHttpRequest();'
-	.'xml.open("POST","'.esc_url(site_url('wp-login.php')).'",true);'
+	.'xml.open("POST","'.esc_url(admin_url('admin-ajax.php')).'",true);'
 	.'xml.setRequestHeader("Content-type","application/x-www-form-urlencoded");'
 	.'xml.onreadystatechange=function(){if(this.readyState==4){'
-		.'if(this.status==200){var x,l=String.fromCharCode(60),r=String.fromCharCode(62);'
-			.'if(this.responseText.indexOf(l+"div id=\"login_error\""+r)>=0){'
-				.'m.innerHTML=act?"Email not found":"Email/password incorrect or not found";'
-				.'m.parentNode.querySelector(".login-ack").style.display="";'
-			.'}else if(act){'
-				.'if(!uid){'
-					.'n.querySelector(".login-password").style.display=n.querySelector(".login-submit").style.display="";'
-					.'n.querySelector(".login-request").style.display="none";'
-				.'}'
-				.'if(this.responseText.indexOf(l+"p class=\"message\""+r)>=0){'
+		.'if(this.status==200){'
+			.'if(this.responseText==="OK"){'
+				.'if(act){'
 					.'m.innerHTML="Your password has been emailed to you! Please check your spam folder too in case the email lands there.";'
 					.'m.parentNode.querySelector(".login-ack").style.display="";'
-				.'}else if(!(!act||(x=this.responseText.indexOf(l+"div id=\"wpl-choose-account\""+r))<0)){'
-					.'m.parentNode.style.display="none";'
-					.'n.parentNode.querySelector(".login-choose").style.display="";'
-					.'x=this.responseText.substr(x+29);'
-					.'n.parentNode.querySelector(".login-choose").innerHTML=x.substr(0,x.indexOf(l+"/div"+r));'
+					.'f.querySelector(".login-password").style.display=n.parentNode.querySelector(".login-submit").style.display="";'
+					.'f.querySelector(".login-request").style.display="none";'
+				.'}else{'
+					.'if(red)location=red;else location.reload();'
 				.'}'
+			.'}else if(act){'
+				.'m.innerHTML=this.responseText;'
+				.'m.parentNode.querySelector(".login-ack").style.display="";'
 			.'}else{'
-				.'if(red)location=red;else location.reload();'
+				.'m.innerHTML=this.responseText;'
+				.'m.parentNode.querySelector(".login-ack").style.display="";'
 			.'}'
-		.'}else{alert("Login System Error");}'
+		.'}else{alert("Login system error");}'
 	.'}};'
 	.'i=String.fromCharCode(38);'
-	.'if(!act)xml.send("action=login"+i+"log="+log+i+"pwd="+pwd+i+"redirect_to="+encodeURIComponent(location.href));'
-	.'else xml.send("action=retrievepassword"+i+"user_login="+log+(uid?(i+"uid="+uid):""));'
+	.'if(act)xml.send("action=sf_password"+i+"user_login="+log+(uid?(i+"uid="+uid):""));'
+	.'else xml.send("action=sf_login"+i+"log="+log+i+"pwd="+pwd);'
 	.'return false;'
 .'}</script>';
 
@@ -109,9 +113,14 @@ class sf_widget_login extends WP_Widget {
 			$set=get_option('sf_set');
 			$uid=get_user_meta(get_current_user_id(),'SF_ID',true);
 			echo '<p style="margin-top:0">'.__('Hello').' '.$current_user->display_name.'!</p>'
-				.'<form id="loginform'.$id.'" action="'.esc_url(wp_nonce_url(site_url('wp-login.php','login_post'),'log-out')).'&action=logout&redirect_to='.esc_url(empty($set['out'])?get_site_url():$set['out']).'" method="post">'
-				.'<input type="submit" class="button-primary" value="'.__('Log Out').'" />'
-				.'</form>';
+				.'<input type="submit" class="button-primary" onclick="sf_wpl();return false;" value="Logout"/>'
+				.'<script>function sf_wpl(){var xml=new XMLHttpRequest();'
+					.'xml.open("POST","'.esc_url(admin_url('admin-ajax.php')).'",true);'
+					.'xml.setRequestHeader("Content-type","application/x-www-form-urlencoded");'
+					.'xml.onreadystatechange=function(){if(this.readyState==4){location="'.(empty($set['out'])?get_site_url():$set['out']).'";}};'
+					.'xml.send("action=sf_logout");'
+					.'return false;'
+				.'}</script>';
 		} else {
 			if (!empty($instance['url']))
 				echo '<input type="hidden" name="red" value="'.esc_url($instance['url']).'">';
@@ -138,77 +147,101 @@ add_action('widgets_init','sf_widget_login_init');
 
 function sf_login() {
 	$act=isset($_REQUEST['action'])?$_REQUEST['action']:'login';
-	if (($set=get_option('sf_set'))&&!empty($set['org'])&&defined('SF_WPL')) {
-		if ($act=='logout'||$act=='sf_logout') {
-			setcookie('SFSF',' ',time()+8640000,'/');
-			if ($act=='sf_logout') {
-				wp_logout();
-				die();
+	if (($set=get_option('sf_set'))&&!empty($set['org'])&&defined('SF_WPL')&&isset($_POST['log'])&&isset($_POST['pwd'])) {
+		$IP=isset($_SERVER['HTTP_X_FORWARDED_FOR'])?$_SERVER['HTTP_X_FORWARDED_FOR']:$_SERVER['REMOTE_ADDR'];
+		$eml=trim(strtolower($_POST['log']));
+		$pwd=trim(strtolower($_POST['pwd']));
+		$try=0;
+		for($try=0;!$try||(is_wp_error($rsp)&&$try<3);$try++) {
+			if ($try) usleep(100000);
+			$rsp=wp_remote_post('https://www.sourcefound.com/api',array('method'=>'POST','headers'=>array('from'=>$IP),'user-agent'=>$_SERVER['HTTP_USER_AGENT'],'body'=>array('fi'=>'usr','org'=>$set['org'],'eml'=>$eml,'pwd'=>$pwd)));
+		}
+		if (!is_wp_error($rsp)&&($rsp=json_decode($rsp['body'],true))&&!empty($rsp['uid'])) {
+			$doc=array('nickname'=>$rsp['nam'],'user_nicename'=>$rsp['nam'],'display_name'=>$rsp['nam'],'user_pass'=>$pwd);
+			if (isset($rsp['url'])) $doc['user_url']=$rsp['url'];
+			$id=username_exists($rsp['uid']);
+			if (is_null($id)) {
+				$id=wp_create_user($rsp['uid'],$pwd,$eml);
+				if (is_wp_error($id)&&$id->get_error_code()=='existing_user_email')
+					$id=wp_create_user($rsp['uid'],$pwd);
+				$doc['show_admin_bar_front']='false';
 			}
-		} else if (($act=='login'||$act=='sf_login')&&isset($_POST['log'])&&isset($_POST['pwd'])) {
-			$IP=isset($_SERVER['HTTP_X_FORWARDED_FOR'])?$_SERVER['HTTP_X_FORWARDED_FOR']:$_SERVER['REMOTE_ADDR'];
-			$eml=trim(strtolower($_POST['log']));
-			$pwd=trim(strtolower($_POST['pwd']));
-			$try=0;
-			for($try=0;!$try||(is_wp_error($rsp)&&$try<3);$try++) {
-				if ($try) usleep(100000);
-				$rsp=wp_remote_post('https://www.sourcefound.com/api',array('method'=>'POST','headers'=>array('from'=>$IP),'user-agent'=>$_SERVER['HTTP_USER_AGENT'],'body'=>array('fi'=>'usr','org'=>$set['org'],'eml'=>$eml,'pwd'=>$pwd)));
-			}
-			if (!is_wp_error($rsp)&&($rsp=json_decode($rsp['body'],true))&&!empty($rsp['uid'])) {
-				$doc=array('nickname'=>$rsp['nam'],'user_nicename'=>$rsp['nam'],'display_name'=>$rsp['nam'],'user_pass'=>$pwd);
-				if (isset($rsp['url'])) $doc['user_url']=$rsp['url'];
-				$id=username_exists($rsp['uid']);
-				if (is_null($id)) {
-					$id=wp_create_user($rsp['uid'],$pwd,$eml);
-					if (is_wp_error($id)&&$id->get_error_code()=='existing_user_email')
-						$id=wp_create_user($rsp['uid'],$pwd);
-					$doc['show_admin_bar_front']='false';
-				}
-				if (!is_null($id)&&!is_wp_error($id)) {
-					$doc['ID']=$id;
-					$doc['user_email']=$eml;
-					wp_update_user($doc);
-					update_user_meta($id,'SF_ID',$rsp['uid']);
-					if ($act=='login')
-						setcookie('SFSF',$rsp['SF'],time()+8640000,'/');
+			if (!is_null($id)&&!is_wp_error($id)) {
+				$doc['ID']=$id;
+				$doc['user_email']=$eml;
+				wp_update_user($doc);
+				update_user_meta($id,'SF_ID',$rsp['uid']);
+				setcookie('SFSF',$rsp['SF'],time()+8640000,'/');
+				if ($act=='sf_login') {
+					$user=wp_signon(array('user_login'=>$rsp['uid'],'user_password'=>$pwd,'remember'=>true));
+					echo is_wp_error($user)?'Could not synchronize login':'OK';
+					die();
+				} else {
 					$_POST['log']=$rsp['uid'];
 					$_POST['pwd']=$pwd;
 				}
-			} else if ($id=email_exists($eml)) {
-				delete_user_meta($id,'SF_ID');
+			} else if ($act=='sf_login') {
+				echo 'Could not create WP user';
+				die();
 			}
+		} else if (($id=email_exists($eml))&&(!get_user_meta(intval($id),'SF_ID',true))) {
+			if ($act=='sf_login') {
+				$user=wp_signon(array('user_login'=>sanitize_user($_POST['log']),'user_password'=>$_POST['pwd'],'remember'=>true));
+				echo is_wp_error($user)?$user->get_error_message():'OK';
+				die();
+			}
+		} else if ($act=='sf_login') {
+			echo 'Email not found or invalid password';
+			die();
 		}
 	}
 }
 add_action('login_form_login','sf_login');
-add_action('login_form_logout','sf_login');
+
+function sf_logout() {
+	if (($set=get_option('sf_set'))&&!empty($set['org'])&&defined('SF_WPL')) {
+		setcookie('SFSF',' ',time()+8640000,'/');
+		if (isset($_REQUEST['action'])&&$_REQUEST['action']=='sf_logout') {
+			wp_logout();
+			echo 'OK';
+			die();
+		}
+	}
+}
+add_action('login_form_logout','sf_logout');
 
 function sf_password() {
 	if (!empty($_POST['user_login'])&&strpos($_POST['user_login'],'@')&&($set=get_option('sf_set'))&&!empty($set['org'])&&defined('SF_WPL')) {
 		$IP=isset($_SERVER['HTTP_X_FORWARDED_FOR'])?$_SERVER['HTTP_X_FORWARDED_FOR']:$_SERVER['REMOTE_ADDR'];
 		for($try=0;!$try||(is_wp_error($rsp)&&$try<3);$try++) {
 			if ($try) usleep(100000);
-			$rsp=wp_remote_get('https://www.sourcefound.com/api?fi=usr&org='.$set['org'].'&pwd&eml='.urlencode($_POST['user_login']).(empty($_POST['uid'])?'':'&uid='.($_POST['uid'])),array('headers'=>array('from'=>$IP),'user-agent'=>$_SERVER['HTTP_USER_AGENT']));
+			$rsp=wp_remote_get('https://www.sourcefound.com/api?fi=usr&Z='.time().'&org='.$set['org'].'&pwd&eml='.urlencode($_POST['user_login']).(empty($_POST['uid'])?'':'&uid='.($_POST['uid'])),array('headers'=>array('from'=>$IP),'user-agent'=>$_SERVER['HTTP_USER_AGENT']));
 		}
 		if (!is_wp_error($rsp)&&empty($rsp['body'])) {
-			wp_safe_redirect(empty($_REQUEST['redirect_to'])?'wp-login.php?checkemail=confirm':$_REQUEST['redirect_to']);
+			if ((isset($_REQUEST['action'])&&$_REQUEST['action']=='sf_password'))
+				echo 'OK';
+			else
+				wp_safe_redirect(empty($_REQUEST['redirect_to'])?'wp-login.php?checkemail=confirm':$_REQUEST['redirect_to']);
 			die();
 		} else if (($rsp=json_decode($rsp['body'],true))&&isset($rsp[0])) { // multiple options
-			echo '<html><head></head><body style="background:#f1f1f1"><div style="margin:auto;padding:8% 0 0;width:320px"><p style="padding:20px 0;text-align:center;background:#fff;border:1px solid #ddd;border-left:4px solid #7AD03A">Select the account you are requesting the password for</p><div style="background:#fff;padding:10px 0;border:1p solid #ddd">';
-			foreach ($rsp as $usr) {
-				echo '<form action="'.esc_url(site_url('wp-login.php')).'" method="post" style="margin:0">'
-					.'<input type="hidden" name="action" value="'.esc_attr($_REQUEST['action']).'">'
-					.'<input type="hidden" name="redirect_to" value="'.esc_attr($_REQUEST['redirect_to']).'">'
-					.'<input type="hidden" name="user_login" value="'.esc_attr($_POST['user_login']).'">'
-					.'<input type="hidden" name="uid" value="'.esc_attr($usr['_id']).'">'
-					.'<input type="submit" value="'.esc_attr(empty($usr['ctc'])?$usr['nam']:($usr['ctc'].' ('.$usr['nam'].')')).'" class="hvr" style="cursor:pointer;display:block;border:none;padding:10px 0;margin:0;width:100%">'
-					.'</form>';
+			if ((isset($_REQUEST['action'])&&$_REQUEST['action']=='sf_password')) {
+				echo '<p>Select the account you are requesting the password for:</p>';
+				foreach ($rsp as $usr) {
+					echo '<p><a style="cursor:pointer" onclick="sf_wpl(this.parentNode.parentNode.parentNode,\'pwd\',\''.esc_attr($usr['_id']).'\')">'.(empty($usr['ctc'])?$usr['nam']:($usr['ctc'].' ('.$usr['nam'].')')).'</a></p>';
+				}
+			} else {
+				echo '<html><head></head><body style="background:#f1f1f1"><div style="margin:auto;padding:8% 0 0;width:320px"><p style="padding:20px 0;text-align:center;background:#fff;border:1px solid #ddd;border-left:4px solid #7AD03A">Select the account you are requesting the password for</p><div style="background:#fff;padding:10px 0;border:1p solid #ddd">';
+				foreach ($rsp as $usr) {
+					echo '<form action="'.esc_url(site_url('wp-login.php')).'" method="post" style="margin:0">'
+						.'<input type="hidden" name="action" value="'.esc_attr($_REQUEST['action']).'">'
+						.'<input type="hidden" name="redirect_to" value="'.esc_attr($_REQUEST['redirect_to']).'">'
+						.'<input type="hidden" name="user_login" value="'.esc_attr($_POST['user_login']).'">'
+						.'<input type="hidden" name="uid" value="'.esc_attr($usr['_id']).'">'
+						.'<input type="submit" value="'.esc_attr(empty($usr['ctc'])?$usr['nam']:($usr['ctc'].' ('.$usr['nam'].')')).'" class="hvr" style="cursor:pointer;display:block;border:none;padding:10px 0;margin:0;width:100%">'
+						.'</form>';
+				}
+				echo '</div></div><style>.hvr{background:transparent}.hvr:hover{background:#0074a2;color:#fff}</style></body></html>';
 			}
-			echo '</div></div><div style="display:none"><div id="wpl-choose-account"><p>Select the account you are requesting the password for:</p>';
-			foreach ($rsp as $usr) {
-				echo '<p><a style="cursor:pointer" onclick="sf_wpl(this.parentNode.parentNode,\'pwd\',\''.esc_attr($usr['_id']).'\')">'.(empty($usr['ctc'])?$usr['nam']:($usr['ctc'].' ('.$usr['nam'].')')).'</a></p>';
-			}
-			echo '</div></div><style>.hvr{background:transparent}.hvr:hover{background:#0074a2;color:#fff}</style></body></html>';
 			die();
 		}
 	}
@@ -282,10 +315,13 @@ function sf_memberonly($content) {
 			if (!empty($opt['label'])||!empty($opt['level'])) {
 				$arr=split(',',empty($opt['label'])?$opt['level']:$opt['label']);
 				foreach ($arr as $val) if (trim(urldecode($val))) $lbl[]=urlencode(trim(urldecode($val)));
+			} else if (!empty($opt['folder'])||!empty($opt['folders'])) {
+				$arr=split(',',empty($opt['folder'])?$opt['folders']:$opt['folder']);
+				foreach ($arr as $val) if (trim(urldecode($val))) $dek[]=urlencode(trim(urldecode($val)));
 			}
 			do {
 				if (empty($try)) $try=0; else usleep(100000);
-				$rsp=wp_remote_get('https://www.sourcefound.com/fi/usr?org='.$set['org'].'&sfsf='.$_COOKIE['SFSF'].'&lbl='.implode(',',$lbl),array('headers'=>array('from'=>$IP),'user-agent'=>$_SERVER['HTTP_USER_AGENT']));
+				$rsp=wp_remote_get('https://www.sourcefound.com/fi/usr?org='.$set['org'].'&sfsf='.$_COOKIE['SFSF'].'&lbl='.implode(',',$lbl).(empty($dek)?'':'&dek='.implode(',',$dek)),array('headers'=>array('from'=>$IP),'user-agent'=>$_SERVER['HTTP_USER_AGENT']));
 			} while (is_wp_error($rsp)&&($try++)<3);
 			if (!is_wp_error($rsp)&&($rsp=json_decode($rsp['body'],true))&&count($rsp))
 				return substr_replace($content,'',$x,$y-$x+1);
