@@ -3,7 +3,7 @@
 Plugin Name: MemberFindMe Login Connector
 Plugin URI: http://memberfind.me
 Description: Connects MemberFindMe membership system with WordPress user accounts and login
-Version: 3.0
+Version: 3.0.1
 Author: SourceFound
 Author URI: http://memberfind.me
 License: GPL2
@@ -222,7 +222,6 @@ function sf_password() {
 				echo 'OK';
 			else
 				wp_safe_redirect(empty($_REQUEST['redirect_to'])?'wp-login.php?checkemail=confirm':$_REQUEST['redirect_to']);
-			die();
 		} else if (($rsp=json_decode($rsp['body'],true))&&isset($rsp[0])) { // multiple options
 			if ((isset($_REQUEST['action'])&&$_REQUEST['action']=='sf_password')) {
 				echo '<p>Select the account you are requesting the password for:</p>';
@@ -242,8 +241,10 @@ function sf_password() {
 				}
 				echo '</div></div><style>.hvr{background:transparent}.hvr:hover{background:#0074a2;color:#fff}</style></body></html>';
 			}
-			die();
+		} else if ((isset($_REQUEST['action'])&&$_REQUEST['action']=='sf_password')) {
+			echo isset($rsp['error'])?$rsp['error']:'Error';
 		}
+		die();
 	}
 }
 add_action('login_form_lostpassword','sf_password');
@@ -262,6 +263,17 @@ function sf_get_avatar($avatar,$id_or_email,$size,$default,$alt) {
 }
 add_filter('get_avatar','sf_get_avatar',99,5);
 
+function sf_memberonly_head() {
+	global $post;
+	for ($i=0;($x=strpos($post->post_content,'[memberonly',$i))!==false||($x=strpos($post->post_content,'[membersonly',$i))!==false;$i=$x+1) {
+		$y=strpos($post->post_content,']',$x);
+		if (substr($post->post_content,$x-1,1)!='['&&$y!==false) break;
+	}
+	if ($x!==false&&$y!==false&&(!is_user_logged_in()||!get_user_meta(get_current_user_id(),'SF_ID',true)))
+		setcookie('SFSF',' ',time()+8640000,'/');
+}
+add_action('wp_head','sf_memberonly_head');
+
 function sf_memberonly($content) {
 	global $SF_widget_login;
 	for ($i=0;($x=strpos($content,'[memberonly',$i))!==false||($x=strpos($content,'[membersonly',$i))!==false;$i=$x+1) {
@@ -277,7 +289,6 @@ function sf_memberonly($content) {
 		if (current_user_can('edit_post')) {
 			return substr_replace($content,'[administrator info: content below ',$x,1);
 		} else if (!is_user_logged_in()||!get_user_meta(get_current_user_id(),'SF_ID',true)) {
-			setcookie('SFSF',' ',time()+8640000,'/');
 			if (!empty($opt['nonmember-redirect'])&&is_singular()) {
 				return substr($content,0,$x)
 					.'<p class="memberonly">'.__(empty($opt['message'])?('... This content is accessible for'.(!empty($opt['label'])||!empty($opt['level'])?' certain':'').' members only ...'):$opt['message']).'</p>'
