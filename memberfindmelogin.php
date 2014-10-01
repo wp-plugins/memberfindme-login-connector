@@ -3,7 +3,7 @@
 Plugin Name: MemberFindMe Login Connector
 Plugin URI: http://memberfind.me
 Description: Connects MemberFindMe membership system with WordPress user accounts and login
-Version: 3.0.1
+Version: 3.0.2
 Author: SourceFound
 Author URI: http://memberfind.me
 License: GPL2
@@ -174,6 +174,7 @@ function sf_login() {
 				setcookie('SFSF',$rsp['SF'],time()+8640000,'/');
 				if ($act=='sf_login') {
 					$user=wp_signon(array('user_login'=>$rsp['uid'],'user_password'=>$pwd,'remember'=>true));
+					ob_clean();
 					echo is_wp_error($user)?'Could not synchronize login':'OK';
 					die();
 				} else {
@@ -181,16 +182,19 @@ function sf_login() {
 					$_POST['pwd']=$pwd;
 				}
 			} else if ($act=='sf_login') {
+				ob_clean();
 				echo 'Could not create WP user';
 				die();
 			}
 		} else if (($id=email_exists($eml))&&(!get_user_meta(intval($id),'SF_ID',true))) {
 			if ($act=='sf_login') {
 				$user=wp_signon(array('user_login'=>sanitize_user($_POST['log']),'user_password'=>$_POST['pwd'],'remember'=>true));
+				ob_clean();
 				echo is_wp_error($user)?$user->get_error_message():'OK';
 				die();
 			}
 		} else if ($act=='sf_login') {
+			ob_clean();
 			echo 'Email not found or invalid password';
 			die();
 		}
@@ -203,6 +207,7 @@ function sf_logout() {
 		setcookie('SFSF',' ',time()+8640000,'/');
 		if (isset($_REQUEST['action'])&&$_REQUEST['action']=='sf_logout') {
 			wp_logout();
+			ob_clean();
 			echo 'OK';
 			die();
 		}
@@ -218,9 +223,10 @@ function sf_password() {
 			$rsp=wp_remote_get('https://www.sourcefound.com/api?fi=usr&Z='.time().'&org='.$set['org'].'&pwd&eml='.urlencode($_POST['user_login']).(empty($_POST['uid'])?'':'&uid='.($_POST['uid'])),array('headers'=>array('from'=>$IP),'user-agent'=>$_SERVER['HTTP_USER_AGENT']));
 		}
 		if (!is_wp_error($rsp)&&empty($rsp['body'])) {
-			if ((isset($_REQUEST['action'])&&$_REQUEST['action']=='sf_password'))
+			if ((isset($_REQUEST['action'])&&$_REQUEST['action']=='sf_password')) {
+				ob_clean();
 				echo 'OK';
-			else
+			} else
 				wp_safe_redirect(empty($_REQUEST['redirect_to'])?'wp-login.php?checkemail=confirm':$_REQUEST['redirect_to']);
 		} else if (($rsp=json_decode($rsp['body'],true))&&isset($rsp[0])) { // multiple options
 			if ((isset($_REQUEST['action'])&&$_REQUEST['action']=='sf_password')) {
@@ -263,16 +269,11 @@ function sf_get_avatar($avatar,$id_or_email,$size,$default,$alt) {
 }
 add_filter('get_avatar','sf_get_avatar',99,5);
 
-function sf_memberonly_head() {
-	global $post;
-	for ($i=0;($x=strpos($post->post_content,'[memberonly',$i))!==false||($x=strpos($post->post_content,'[membersonly',$i))!==false;$i=$x+1) {
-		$y=strpos($post->post_content,']',$x);
-		if (substr($post->post_content,$x-1,1)!='['&&$y!==false) break;
-	}
-	if ($x!==false&&$y!==false&&(!is_user_logged_in()||!get_user_meta(get_current_user_id(),'SF_ID',true)))
+function sf_memberonly_init() {
+	if ((!isset($_COOKIE['SFSF'])||trim($_COOKIE['SFSF']))&&(!is_user_logged_in()||!get_user_meta(get_current_user_id(),'SF_ID',true)))
 		setcookie('SFSF',' ',time()+8640000,'/');
 }
-add_action('wp_head','sf_memberonly_head');
+add_action('init','sf_memberonly_init');
 
 function sf_memberonly($content) {
 	global $SF_widget_login;
@@ -307,6 +308,8 @@ function sf_memberonly($content) {
 					.(empty($set['rsp'])?'':(' data-rsp="'.$set['rsp'].'"'))
 					.(empty($set['ctc'])?'':(' data-ctc="1"'))
 					.(empty($set['scl'])?'':(' data-scl="0"'))
+					.(empty($set['out'])?'':(' data-out="'.$set['out'].'"'))
+					.(empty($set['top'])?'':(' data-top="'.$set['top'].'"'))
 					.' data-wpl="'.esc_url(preg_replace('/^http[s]?:\\/\\/[^\\/]*/','',site_url('wp-login.php','login_post'))).'"'
 					.' data-zzz="'.esc_url(empty($opt['redirect'])?get_permalink():$opt['redirect']).'"'
 					.'><div id="SFpne" style="position:relative;"><div class="SFpne">Loading...</div></div>'
