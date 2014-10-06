@@ -3,7 +3,7 @@
 Plugin Name: MemberFindMe Login Connector
 Plugin URI: http://memberfind.me
 Description: Connects MemberFindMe membership system with WordPress user accounts and login
-Version: 3.0.3
+Version: 3.0.4
 Author: SourceFound
 Author URI: http://memberfind.me
 License: GPL2
@@ -289,14 +289,32 @@ function sf_memberonly($content) {
 		foreach ($mat[1] as $key=>$val) $opt[$val]=$mat[2][$key];
 		if (current_user_can('edit_post')) {
 			return substr_replace($content,'[administrator info: content below ',$x,1);
-		} else if (!is_user_logged_in()||!get_user_meta(get_current_user_id(),'SF_ID',true)) {
+		} else if (($set=get_option('sf_set'))&&!empty($set['org'])) {
+			if (is_user_logged_in()&&get_user_meta(get_current_user_id(),'SF_ID',true)) {
+				$IP=isset($_SERVER['HTTP_X_FORWARDED_FOR'])?$_SERVER['HTTP_X_FORWARDED_FOR']:$_SERVER['REMOTE_ADDR'];
+				$lbl=array();
+				if (!empty($opt['label'])||!empty($opt['level'])) {
+					$arr=split(',',empty($opt['label'])?$opt['level']:$opt['label']);
+					foreach ($arr as $val) if (trim(urldecode($val))) $lbl[]=urlencode(trim(urldecode($val)));
+				} else if (!empty($opt['folder'])||!empty($opt['folders'])) {
+					$arr=split(',',empty($opt['folder'])?$opt['folders']:$opt['folder']);
+					foreach ($arr as $val) if (trim(urldecode($val))) $dek[]=urlencode(trim(urldecode($val)));
+				}
+				do {
+					if (empty($try)) $try=0; else usleep(100000);
+					$rsp=wp_remote_get('https://www.sourcefound.com/fi/usr?org='.$set['org'].'&sfsf='.$_COOKIE['SFSF'].'&lbl='.implode(',',$lbl).(empty($dek)?'':'&dek='.implode(',',$dek)),array('headers'=>array('from'=>$IP),'user-agent'=>$_SERVER['HTTP_USER_AGENT']));
+				} while (is_wp_error($rsp)&&($try++)<3);
+				if (!is_wp_error($rsp)&&($rsp=json_decode($rsp['body'],true))&&count($rsp))
+					return substr_replace($content,'',$x,$y-$x+1);
+			}
+			$msg=empty($opt['message'])?(isset($IP)?'... This content is not accessible for your membership level or membership is expired ...':('... This content is accessible for members only ...')):$opt['message'];
 			if (!empty($opt['nonmember-redirect'])&&is_singular()) {
 				return substr($content,0,$x)
-					.'<p class="memberonly">'.__(empty($opt['message'])?('... This content is accessible for'.(!empty($opt['label'])||!empty($opt['level'])?' certain':'').' members only ...'):$opt['message']).'</p>'
+					.'<p class="memberonly">'.__($msg).'</p>'
 					.'<script>window.location="'.esc_url($opt['nonmember-redirect']).'";</script>';
 			} else if (!empty($opt['nonmember'])&&is_singular()&&($set=get_option('sf_set'))) {
 				return substr($content,0,$x)
-					.'<p class="memberonly">'.__(empty($opt['message'])?('... This content is accessible for'.(!empty($opt['label'])||!empty($opt['level'])?' certain':'').' members only ...'):$opt['message']).'</p>'
+					.'<p class="memberonly">'.__($msg).'</p>'
 					.'<div id="SFctr" class="SF" data-sfi="1" data-ini="'.$opt['nonmember'].'"'
 					.(strpos($opt['open'],'account')===0?'':(' data-hme="'.$opt['open'].'"'))
 					.(empty($set['org'])?'':(' data-org="'.$set['org'].'"'))
@@ -316,32 +334,16 @@ function sf_memberonly($content) {
 					.'<div style="clear:both;"></div>'
 					.'</div>'
 					.'<script type="text/javascript" src="//mfm-sourcefoundinc.netdna-ssl.com/mfm.js" defer="defer"></script>';
+			} else if (isset($IP)) {
+				return substr($content,0,$x)
+					.'<p class="memberonly">'.__($msg).'</p>';
 			} else {
 				return substr($content,0,$x)
 					.'<div class="memberonly" style="padding:20px;border:1px solid #ddd">'
-						.'<p>'.__(empty($opt['message'])?('... This content is accessible for'.(!empty($opt['label'])||!empty($opt['level'])?' certain':'').' members only. Please log in ...'):$opt['message']).'</p>'
+						.'<p>'.__($msg).'</p>'
 						.(is_singular()?$SF_widget_login:'')
 					.'</div>';
 			}
-		} else if (($set=get_option('sf_set'))&&!empty($set['org'])) {
-			$IP=isset($_SERVER['HTTP_X_FORWARDED_FOR'])?$_SERVER['HTTP_X_FORWARDED_FOR']:$_SERVER['REMOTE_ADDR'];
-			$lbl=array();
-			if (!empty($opt['label'])||!empty($opt['level'])) {
-				$arr=split(',',empty($opt['label'])?$opt['level']:$opt['label']);
-				foreach ($arr as $val) if (trim(urldecode($val))) $lbl[]=urlencode(trim(urldecode($val)));
-			} else if (!empty($opt['folder'])||!empty($opt['folders'])) {
-				$arr=split(',',empty($opt['folder'])?$opt['folders']:$opt['folder']);
-				foreach ($arr as $val) if (trim(urldecode($val))) $dek[]=urlencode(trim(urldecode($val)));
-			}
-			do {
-				if (empty($try)) $try=0; else usleep(100000);
-				$rsp=wp_remote_get('https://www.sourcefound.com/fi/usr?org='.$set['org'].'&sfsf='.$_COOKIE['SFSF'].'&lbl='.implode(',',$lbl).(empty($dek)?'':'&dek='.implode(',',$dek)),array('headers'=>array('from'=>$IP),'user-agent'=>$_SERVER['HTTP_USER_AGENT']));
-			} while (is_wp_error($rsp)&&($try++)<3);
-			if (!is_wp_error($rsp)&&($rsp=json_decode($rsp['body'],true))&&count($rsp))
-				return substr_replace($content,'',$x,$y-$x+1);
-			else 
-				return substr($content,0,$x)
-					.'<p class="memberonly">'.__('... This content is not accessible for your membership level/status ...').'</p>';
 		} else
 			return $content;
 	} else

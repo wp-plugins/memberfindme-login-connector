@@ -4,7 +4,7 @@ Donate link: http://memberfind.me
 Tags: memberfindme, membership management, membership, member login, billing, member access, member content
 Requires at least: 3.0
 Tested up to: 4.0
-Stable tag: 3.0.3
+Stable tag: 3.0.4
 License: GPL2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -88,3 +88,6 @@ When displaying a membership sign-up form or MemberFindMe form/cart for non-memb
 
 = 3.0.3 =
 * Fixes issue with MFM administrator being signed out
+
+= 3.0.4 =
+* Allows nonmember and nonmember-redirect options to work for signed in users
