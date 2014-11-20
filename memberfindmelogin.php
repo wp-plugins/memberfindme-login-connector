@@ -3,7 +3,7 @@
 Plugin Name: MemberFindMe Login Connector
 Plugin URI: http://memberfind.me
 Description: Connects MemberFindMe membership system with WordPress user accounts and login
-Version: 3.0.5
+Version: 3.1
 Author: SourceFound
 Author URI: http://memberfind.me
 License: GPL2
@@ -26,15 +26,6 @@ License: GPL2
 */
 
 define('SF_WPL',3);
-
-if (is_admin()) {
-	add_action('wp_ajax_nopriv_sf_login','sf_login');
-	add_action('wp_ajax_sf_login','sf_login');
-	add_action('wp_ajax_nopriv_sf_logout','sf_logout');
-	add_action('wp_ajax_sf_logout','sf_logout');
-	add_action('wp_ajax_nopriv_sf_password','sf_password');
-	add_action('wp_ajax_sf_password','sf_password');
-}
 
 $SF_widget_login='<div class="login-form">'
 	.'<p class="login-username"><label style="display:block">'.__('Email').'</label><input type="text" name="log" class="input" size="20"></p>'
@@ -59,7 +50,7 @@ $SF_widget_login='<div class="login-form">'
 	.'m.parentNode.style.display="";'
 	.'m.innerHTML="Please wait...";'
 	.'xml=new XMLHttpRequest();'
-	.'xml.open("POST","'.esc_url(admin_url('admin-ajax.php')).'",true);'
+	.'xml.open("POST","'.str_replace(array('http://','https://'),'//',esc_url(admin_url('admin-ajax.php'))).'",true);'
 	.'xml.setRequestHeader("Content-type","application/x-www-form-urlencoded");'
 	.'xml.onreadystatechange=function(){if(this.readyState==4){'
 		.'if(this.status==200){'
@@ -115,7 +106,7 @@ class sf_widget_login extends WP_Widget {
 			echo '<p style="margin-top:0">'.__('Hello').' '.$current_user->display_name.'!</p>'
 				.'<input type="submit" class="button-primary" onclick="sf_wpl();return false;" value="Logout"/>'
 				.'<script>function sf_wpl(){var xml=new XMLHttpRequest();'
-					.'xml.open("POST","'.esc_url(admin_url('admin-ajax.php')).'",true);'
+					.'xml.open("POST","'.esc_url(str_replace(array('http://','https://'),'//',admin_url('admin-ajax.php'))).'",true);'
 					.'xml.setRequestHeader("Content-type","application/x-www-form-urlencoded");'
 					.'xml.onreadystatechange=function(){if(this.readyState==4){location="'.(empty($set['out'])?get_site_url():$set['out']).'";}};'
 					.'xml.send("action=sf_logout");'
@@ -141,6 +132,15 @@ class sf_widget_login extends WP_Widget {
 	}
 }
 function sf_widget_login_init() {
+	if (defined('DOING_AJAX')&&defined('WP_ADMIN')&&!empty($_REQUEST['action'])){
+		if ($_REQUEST['action']=='sf_login'){
+			sf_login();
+		} else if ($_REQUEST['action']=='sf_logout') {
+			sf_logout();
+		} else if ($_REQUEST['action']=='sf_password') {
+			sf_password();
+		}
+	}
 	register_widget('sf_widget_login');
 }
 add_action('widgets_init','sf_widget_login_init');
