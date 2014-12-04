@@ -3,7 +3,7 @@
 Plugin Name: MemberFindMe Login Connector
 Plugin URI: http://memberfind.me
 Description: Connects MemberFindMe membership system with WordPress user accounts and login
-Version: 3.1.1
+Version: 3.2
 Author: SourceFound
 Author URI: http://memberfind.me
 License: GPL2
@@ -26,6 +26,21 @@ License: GPL2
 */
 
 define('SF_WPL',3);
+
+function sf_mfl_init() {
+	if (defined('DOING_AJAX')&&defined('WP_ADMIN')&&!empty($_REQUEST['action'])){
+		if ($_REQUEST['action']=='sf_login'){
+			sf_login();
+		} else if ($_REQUEST['action']=='sf_logout') {
+			sf_logout();
+		} else if ($_REQUEST['action']=='sf_password') {
+			sf_password();
+		}
+	} else if ((!isset($_COOKIE['SFSF'])||trim($_COOKIE['SFSF']))&&!is_user_logged_in()) {
+		setcookie('SFSF',' ',time()+8640000,'/');
+	}
+}
+add_action('plugins_loaded','sf_mfl_init');
 
 $SF_widget_login='<div class="login-form">'
 	.'<p class="login-username"><label style="display:block">'.__('Email').'</label><input type="text" name="log" class="input" size="20"></p>'
@@ -132,15 +147,6 @@ class sf_widget_login extends WP_Widget {
 	}
 }
 function sf_widget_login_init() {
-	if (defined('DOING_AJAX')&&defined('WP_ADMIN')&&!empty($_REQUEST['action'])){
-		if ($_REQUEST['action']=='sf_login'){
-			sf_login();
-		} else if ($_REQUEST['action']=='sf_logout') {
-			sf_logout();
-		} else if ($_REQUEST['action']=='sf_password') {
-			sf_password();
-		}
-	}
 	register_widget('sf_widget_login');
 }
 add_action('widgets_init','sf_widget_login_init');
@@ -173,7 +179,7 @@ function sf_login() {
 				update_user_meta($id,'SF_ID',$rsp['uid']);
 				setcookie('SFSF',$rsp['SF'],time()+8640000,'/');
 				if ($act=='sf_login') {
-					$user=wp_signon(array('user_login'=>$rsp['uid'],'user_password'=>$pwd,'remember'=>true));
+					$user=wp_signon(array('user_login'=>$rsp['uid'],'user_password'=>$pwd,'remember'=>true),false);
 					ob_clean();
 					echo is_wp_error($user)?'Could not synchronize login':'OK';
 					die();
@@ -188,7 +194,7 @@ function sf_login() {
 			}
 		} else if (($id=email_exists($eml))&&(!get_user_meta(intval($id),'SF_ID',true))) {
 			if ($act=='sf_login') {
-				$user=wp_signon(array('user_login'=>sanitize_user($_POST['log']),'user_password'=>$_POST['pwd'],'remember'=>true));
+				$user=wp_signon(array('user_login'=>sanitize_user($_POST['log']),'user_password'=>$_POST['pwd'],'remember'=>true),false);
 				ob_clean();
 				echo is_wp_error($user)?$user->get_error_message():'OK';
 				die();
@@ -269,12 +275,6 @@ function sf_get_avatar($avatar,$id_or_email,$size,$default,$alt) {
 }
 add_filter('get_avatar','sf_get_avatar',99,5);
 
-function sf_memberonly_init() {
-	if ((!isset($_COOKIE['SFSF'])||trim($_COOKIE['SFSF']))&&!is_user_logged_in())
-		setcookie('SFSF',' ',time()+8640000,'/');
-}
-add_action('init','sf_memberonly_init');
-
 function sf_memberonly($content) {
 	global $SF_widget_login;
 	for ($i=0;($x=strpos($content,'[memberonly',$i))!==false||($x=strpos($content,'[membersonly',$i))!==false;$i=$x+1) {
@@ -284,9 +284,8 @@ function sf_memberonly($content) {
 	if ($x!==false&&$y!==false) {
 		define('DONOTCACHEPAGE',true);
 		$mat=array();
-		preg_match_all('/\s([a-z\-]*)(="[^"]*")/',str_replace(array('&#8221;','&#8243;','&quot;','&ldquo;','&rdquo;'),'"',substr($content,$x+1,$y-$x-1)),$mat,PREG_PATTERN_ORDER);
-		$opt=array();
-		foreach ($mat[1] as $key=>$val) $opt[$val]=empty($mat[2][$key])?'':substr($mat[2][$key],2,-1);
+		preg_match_all('/\s([a-z]*)(=("|&[^;]*;)+.*?("|&[^;]*;))?/',substr($content,$x+1,$y-$x-1),$mat,PREG_PATTERN_ORDER);
+		foreach ($mat[1] as $key=>$val) $opt[$val]=empty($mat[2][$key])?'':trim(preg_replace('/^=("|&[^;]*;)*|("|&[^;]*;)$/','',$mat[2][$key]));
 		if (current_user_can('edit_post')) {
 			return substr_replace($content,'[administrator info: content below ',$x,1);
 		} else if (($set=get_option('sf_set'))&&!empty($set['org'])) {
