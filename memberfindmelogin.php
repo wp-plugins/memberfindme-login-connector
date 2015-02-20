@@ -3,7 +3,7 @@
 Plugin Name: MemberFindMe Login Connector
 Plugin URI: http://memberfind.me
 Description: Connects MemberFindMe membership system with WordPress user accounts and login
-Version: 3.2
+Version: 3.3
 Author: SourceFound
 Author URI: http://memberfind.me
 License: GPL2
@@ -36,7 +36,7 @@ function sf_mfl_init() {
 		} else if ($_REQUEST['action']=='sf_password') {
 			sf_password();
 		}
-	} else if ((!isset($_COOKIE['SFSF'])||trim($_COOKIE['SFSF']))&&!is_user_logged_in()) {
+	} else if (isset($_COOKIE['SFSF'])&&$_COOKIE['SFSF']!=' '&&!is_user_logged_in()) {
 		setcookie('SFSF',' ',time()+8640000,'/');
 	}
 }
@@ -181,7 +181,7 @@ function sf_login() {
 				if ($act=='sf_login') {
 					$user=wp_signon(array('user_login'=>$rsp['uid'],'user_password'=>$pwd,'remember'=>true),false);
 					ob_clean();
-					echo is_wp_error($user)?'Could not synchronize login':'OK';
+					echo is_wp_error($user)?('Could not synchronize login '.$user->get_error_message()):'OK';
 					die();
 				} else {
 					$_POST['log']=$rsp['uid'];
@@ -282,11 +282,12 @@ function sf_memberonly($content) {
 		if ((!$x||substr($content,$x-1,1)!='[')&&$y!==false) break;
 	}
 	if ($x!==false&&$y!==false) {
-		define('DONOTCACHEPAGE',true);
+		if (!defined('DONOTCACHEPAGE'))
+			define('DONOTCACHEPAGE',true);
 		$mat=array();
 		preg_match_all('/\s([a-z]*)(=("|&[^;]*;)+.*?("|&[^;]*;))?/',substr($content,$x+1,$y-$x-1),$mat,PREG_PATTERN_ORDER);
 		foreach ($mat[1] as $key=>$val) $opt[$val]=empty($mat[2][$key])?'':trim(preg_replace('/^=("|&[^;]*;)*|("|&[^;]*;)$/','',$mat[2][$key]));
-		if (current_user_can('edit_post')) {
+		if (current_user_can('edit_post',get_the_ID())) {
 			return substr_replace($content,'[administrator info: content below ',$x,1);
 		} else if (($set=get_option('sf_set'))&&!empty($set['org'])) {
 			if (is_user_logged_in()&&get_user_meta(get_current_user_id(),'SF_ID',true)) {
