@@ -285,10 +285,12 @@ function sf_memberonly($content) {
 		if (!defined('DONOTCACHEPAGE'))
 			define('DONOTCACHEPAGE',true);
 		$mat=array();
-		preg_match_all('/\s([a-z]*)(=("|&[^;]*;)+.*?("|&[^;]*;))?/',substr($content,$x+1,$y-$x-1),$mat,PREG_PATTERN_ORDER);
+		preg_match_all('/\s([a-z\-]*)(=("|&[^;]*;)+.*?("|&[^;]*;))?/',substr($content,$x+1,$y-$x-1),$mat,PREG_PATTERN_ORDER);
 		foreach ($mat[1] as $key=>$val) $opt[$val]=empty($mat[2][$key])?'':trim(preg_replace('/^=("|&[^;]*;)*|("|&[^;]*;)$/','',$mat[2][$key]));
 		if (current_user_can('edit_post',get_the_ID())) {
-			return substr_replace($content,'[administrator info: content below ',$x,1);
+			$tmp=array();
+			foreach ($opt as $key=>$val) $tmp[]=$key.'="'.$val.'"';
+			return substr_replace($content,'[administrator info: content below memberonly '.implode(' ',$tmp).']',$x,$y-$x+1);
 		} else if (($set=get_option('sf_set'))&&!empty($set['org'])) {
 			if (is_user_logged_in()&&get_user_meta(get_current_user_id(),'SF_ID',true)) {
 				$IP=isset($_SERVER['HTTP_X_FORWARDED_FOR'])?$_SERVER['HTTP_X_FORWARDED_FOR']:$_SERVER['REMOTE_ADDR'];
