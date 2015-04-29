@@ -3,8 +3,8 @@ Contributors: sourcefound
 Donate link: http://memberfind.me
 Tags: memberfindme, membership management, membership, member login, billing, member access, member content
 Requires at least: 3.0
-Tested up to: 4.1.1
-Stable tag: 3.3
+Tested up to: 4.2.1
+Stable tag: 3.4
 License: GPL2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -106,3 +106,7 @@ When displaying a membership sign-up form or MemberFindMe form/cart for non-memb
 
 = 3.3 =
 * Fixes some PHP warnings
+
+= 3.4 =
+* Sends nocache headers to prevent browser from loading member only pages or posts from cache when back button is used
+* Fixes a PHP warning

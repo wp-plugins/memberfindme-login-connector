@@ -3,7 +3,7 @@
 Plugin Name: MemberFindMe Login Connector
 Plugin URI: http://memberfind.me
 Description: Connects MemberFindMe membership system with WordPress user accounts and login
-Version: 3.3
+Version: 3.4
 Author: SourceFound
 Author URI: http://memberfind.me
 License: GPL2
@@ -41,6 +41,21 @@ function sf_mfl_init() {
 	}
 }
 add_action('plugins_loaded','sf_mfl_init');
+
+function sf_mfl_nocache_headers($headers) {
+	$headers['Cache-Control']='no-cache, must-revalidate, max-age=0, no-store';
+	return $headers;
+}
+add_filter('nocache_headers','sf_mfl_nocache_headers');
+
+function sf_mfl_header() {
+	global $post;
+	if(strpos($post->post_content,'[memberonly')!==false||strpos($post->post_content,'[membersonly')!==false) {
+		if (!defined('DONOTCACHEPAGE')) define('DONOTCACHEPAGE',true);
+		nocache_headers();
+	}
+}
+add_action('get_header','sf_mfl_header');
 
 $SF_widget_login='<div class="login-form">'
 	.'<p class="login-username"><label style="display:block">'.__('Email').'</label><input type="text" name="log" class="input" size="20"></p>'
@@ -282,10 +297,9 @@ function sf_memberonly($content) {
 		if ((!$x||substr($content,$x-1,1)!='[')&&$y!==false) break;
 	}
 	if ($x!==false&&$y!==false) {
-		if (!defined('DONOTCACHEPAGE'))
-			define('DONOTCACHEPAGE',true);
 		$mat=array();
 		preg_match_all('/\s([a-z\-]*)(=("|&[^;]*;)+.*?("|&[^;]*;))?/',substr($content,$x+1,$y-$x-1),$mat,PREG_PATTERN_ORDER);
+		$opt=array();
 		foreach ($mat[1] as $key=>$val) $opt[$val]=empty($mat[2][$key])?'':trim(preg_replace('/^=("|&[^;]*;)*|("|&[^;]*;)$/','',$mat[2][$key]));
 		if (current_user_can('edit_post',get_the_ID())) {
 			$tmp=array();
