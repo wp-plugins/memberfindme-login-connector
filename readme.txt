@@ -4,7 +4,7 @@ Donate link: http://memberfind.me
 Tags: memberfindme, membership management, membership, member login, billing, member access, member content
 Requires at least: 3.0
 Tested up to: 4.2.1
-Stable tag: 3.5
+Stable tag: 3.6
 License: GPL2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -25,6 +25,8 @@ This plugin supplements the main MemberFindMe plugin (version 1.2 and up) to pro
 To restrict the content of the entire post/page to members, place the [memberonly] shortcode at the beginning of the post. Placing the [memberonly] shortcode within the page will allow content above the shortcode to be displayed to non-members, and content below the shortcode to be restricted to members.
 
 To modify the message that is displayed for non-members, add a message option to the shortcode, ie. [memberonly message="..."].
+
+To display a message to non-members and omit the login form, add the nologin option to the shortcode, ie. [memberonly message="..." nologin].
 
 To restrict access to certain membership levels or labels, add a label option to the shortcode, ie. [memberonly label="..."]. For example [memberonly label="business member"]. You can restrict content to more than 1 label by separating the labels with a comma, for example [memberonly label="membership committee,marketing committee"]. If your label or membership level name contains a comma, you should escape the comma, for example [memberonly label="label%2C1,label%2C2"]. 
 
@@ -113,3 +115,7 @@ When displaying a membership sign-up form or MemberFindMe form/cart for non-memb
 
 = 3.5 =
 * Fixes issue with WordPress 4.2.2 where user_nicename and display_name is not set when a duplicate email address exists in WP
+
+= 3.6 =
+* Can set content of Text widget to member only
+* Adds nologin option
