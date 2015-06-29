@@ -3,7 +3,7 @@
 Plugin Name: MemberFindMe Login Connector
 Plugin URI: http://memberfind.me
 Description: Connects MemberFindMe membership system with WordPress user accounts and login
-Version: 3.6
+Version: 3.7
 Author: SourceFound
 Author URI: http://memberfind.me
 License: GPL2
@@ -61,7 +61,7 @@ $SF_widget_login='<div class="login-form">'
 	.'<p class="login-username"><label style="display:block">'.__('Email').'</label><input type="text" name="log" class="input" size="20"></p>'
 	.'<p class="login-password"><label style="display:block">'.__('Password').'</label><input type="password" name="pwd" class="input" size="20"></p>'
 	.'<p class="login-submit">'
-		.'<input type="submit" class="button-primary" value="'.__('Log In').'" onclick="sf_wpl(this.parentNode.parentNode);return false;">'
+		.'<input type="submit" class="button-primary" value="'.__('Sign In').'" onclick="sf_wpl(this.parentNode.parentNode);return false;">'
 		.'<a style="margin-left:10px" onclick="this.parentNode.style.display=this.parentNode.parentNode.querySelector(\'.login-password\').style.display=\'none\';this.parentNode.parentNode.querySelector(\'.login-request\').style.display=\'\';">Forgot password?</a>'
 	.'</p>'
 	.'<p class="login-request" style="display:none">'
@@ -168,6 +168,7 @@ add_action('widgets_init','sf_widget_login_init');
 
 function sf_login() {
 	$act=isset($_REQUEST['action'])?$_REQUEST['action']:'login';
+	$msg=false;
 	if (($set=get_option('sf_set'))&&!empty($set['org'])&&defined('SF_WPL')&&isset($_POST['log'])&&isset($_POST['pwd'])) {
 		$IP=isset($_SERVER['HTTP_X_FORWARDED_FOR'])?$_SERVER['HTTP_X_FORWARDED_FOR']:$_SERVER['REMOTE_ADDR'];
 		$eml=trim(strtolower($_POST['log']));
@@ -177,7 +178,11 @@ function sf_login() {
 			if ($try) usleep(100000);
 			$rsp=wp_remote_post('https://www.sourcefound.com/api',array('method'=>'POST','headers'=>array('from'=>$IP),'user-agent'=>$_SERVER['HTTP_USER_AGENT'],'body'=>array('fi'=>'usr','org'=>$set['org'],'eml'=>$eml,'pwd'=>$pwd)));
 		}
-		if (!is_wp_error($rsp)&&($rsp=json_decode($rsp['body'],true))&&!empty($rsp['uid'])) {
+		if (is_wp_error($rsp)||empty($rsp['response'])) {
+			$msg='Network error, please try again later';
+		} else if ($rsp['response']['code']!=200||empty($rsp['body'])) {
+			$msg='Server error, please try again later';
+		} else if (($rsp=json_decode($rsp['body'],true))&&!empty($rsp['uid'])) {
 			$doc=array('nickname'=>$rsp['nam'],'user_nicename'=>$rsp['nam'],'display_name'=>$rsp['nam'],'user_pass'=>$pwd);
 			if (isset($rsp['url'])) $doc['user_url']=$rsp['url'];
 			$id=username_exists($rsp['uid']);
@@ -196,30 +201,27 @@ function sf_login() {
 				setcookie('SFSF',$rsp['SF'],time()+8640000,'/');
 				if ($act=='sf_login') {
 					$user=wp_signon(array('user_login'=>$rsp['uid'],'user_password'=>$pwd,'remember'=>true),false);
-					ob_clean();
-					echo is_wp_error($user)?('Could not synchronize login '.$user->get_error_message()):'OK';
-					die();
+					$msg=is_wp_error($user)?('Could not synchronize login '.$user->get_error_message()):'OK';
 				} else {
 					$_POST['log']=$rsp['uid'];
 					$_POST['pwd']=$pwd;
 				}
 			} else if ($act=='sf_login') {
-				ob_clean();
-				echo 'Could not create WP user';
-				die();
+				$msg='Could not create WP user';
 			}
 		} else if (($id=email_exists($eml))&&(!get_user_meta(intval($id),'SF_ID',true))) {
 			if ($act=='sf_login') {
 				$user=wp_signon(array('user_login'=>sanitize_user($_POST['log']),'user_password'=>$_POST['pwd'],'remember'=>true),false);
-				ob_clean();
-				echo is_wp_error($user)?$user->get_error_message():'OK';
-				die();
+				$msg=is_wp_error($user)?$user->get_error_message():'OK';
 			}
 		} else if ($act=='sf_login') {
-			ob_clean();
-			echo 'Email not found or invalid password';
-			die();
+			$msg=!empty($rsp)&&!empty($rsp['error'])?$rsp['error']:'Email not found or invalid password';
 		}
+	}
+	if (!empty($msg)) {
+		ob_clean();
+		echo $msg;
+		die();
 	}
 }
 add_action('login_form_login','sf_login');
@@ -270,7 +272,7 @@ function sf_password() {
 				echo '</div></div><style>.hvr{background:transparent}.hvr:hover{background:#0074a2;color:#fff}</style></body></html>';
 			}
 		} else if ((isset($_REQUEST['action'])&&$_REQUEST['action']=='sf_password')) {
-			echo isset($rsp['error'])?$rsp['error']:'Error';
+			echo isset($rsp['error'])?$rsp['error']:'Network error';
 		}
 		die();
 	}
@@ -307,24 +309,44 @@ function sf_memberonly($content) {
 			foreach ($opt as $key=>$val) $tmp[]=$key.'="'.$val.'"';
 			return substr_replace($content,'[administrator info: content below memberonly '.implode(' ',$tmp).']',$x,$y-$x+1);
 		} else if (($set=get_option('sf_set'))&&!empty($set['org'])) {
+			$msg='The following content is accessible for members only, please sign in';
 			if (is_user_logged_in()&&get_user_meta(get_current_user_id(),'SF_ID',true)) {
-				$IP=isset($_SERVER['HTTP_X_FORWARDED_FOR'])?$_SERVER['HTTP_X_FORWARDED_FOR']:$_SERVER['REMOTE_ADDR'];
-				$lbl=array();
-				if (!empty($opt['label'])||!empty($opt['level'])) {
-					$arr=split(',',empty($opt['label'])?$opt['level']:$opt['label']);
-					foreach ($arr as $val) if (trim(urldecode($val))) $lbl[]=urlencode(trim(urldecode($val)));
-				} else if (!empty($opt['folder'])||!empty($opt['folders'])) {
-					$arr=split(',',empty($opt['folder'])?$opt['folders']:$opt['folder']);
-					foreach ($arr as $val) if (trim(urldecode($val))) $dek[]=urlencode(trim(urldecode($val)));
+				if (!empty($_COOKIE['SFSF'])) {
+					$IP=isset($_SERVER['HTTP_X_FORWARDED_FOR'])?$_SERVER['HTTP_X_FORWARDED_FOR']:$_SERVER['REMOTE_ADDR'];
+					$lbl=array();
+					if (!empty($opt['label'])||!empty($opt['level'])) {
+						$arr=split(',',empty($opt['label'])?$opt['level']:$opt['label']);
+						foreach ($arr as $val) if (trim(urldecode($val))) $lbl[]=urlencode(trim(urldecode($val)));
+					} else if (!empty($opt['folder'])||!empty($opt['folders'])) {
+						$arr=split(',',empty($opt['folder'])?$opt['folders']:$opt['folder']);
+						foreach ($arr as $val) if (trim(urldecode($val))) $dek[]=urlencode(trim(urldecode($val)));
+					}
+					do {
+						if (empty($try)) $try=0; else usleep(100000);
+						$rsp=wp_remote_get('https://www.sourcefound.com/fi/usr?org='.$set['org'].'&sfsf='.$_COOKIE['SFSF'].'&lbl='.implode(',',$lbl).(empty($dek)?'':'&dek='.implode(',',$dek)),array('headers'=>array('from'=>$IP),'user-agent'=>$_SERVER['HTTP_USER_AGENT']));
+					} while (is_wp_error($rsp)&&($try++)<3);
+					if (is_wp_error($rsp)||empty($rsp['response']))
+						$err='Network error, please try again later';
+					else if ($rsp['response']['code']==403)
+						$IP=false;
+					else if ($rsp['response']['code']!=200||empty($rsp['body']))
+						$err='Server error, please try again later';
+					else if (($rsp=json_decode($rsp['body'],true))&&count($rsp))
+						return substr_replace($content,'',$x,$y-$x+1);
+					else
+						$msg='The following content is not accessible for your account or your membership has expired';
+				}	
+				if (empty($IP)) {
+					wp_logout();
+					$msg='Session expired, please sign in again';
 				}
-				do {
-					if (empty($try)) $try=0; else usleep(100000);
-					$rsp=wp_remote_get('https://www.sourcefound.com/fi/usr?org='.$set['org'].'&sfsf='.$_COOKIE['SFSF'].'&lbl='.implode(',',$lbl).(empty($dek)?'':'&dek='.implode(',',$dek)),array('headers'=>array('from'=>$IP),'user-agent'=>$_SERVER['HTTP_USER_AGENT']));
-				} while (is_wp_error($rsp)&&($try++)<3);
-				if (!is_wp_error($rsp)&&($rsp=json_decode($rsp['body'],true))&&count($rsp))
-					return substr_replace($content,'',$x,$y-$x+1);
 			}
-			$msg=empty($opt['message'])?(isset($IP)?'... This content is not accessible for your membership level or membership is expired ...':('... This content is accessible for members only ...')):$opt['message'];
+			if (!empty($err)) {
+				return substr($content,0,$x)
+					.'<p class="memberonly">'.__($err).'</p>';
+			}
+			if (!empty($opt['message']))
+				$msg=$opt['message'];
 			if (!empty($opt['nonmember-redirect'])&&is_singular()) {
 				return substr($content,0,$x)
 					.'<p class="memberonly">'.__($msg).'</p>'
@@ -351,12 +373,12 @@ function sf_memberonly($content) {
 					.'<div style="clear:both;"></div>'
 					.'</div>'
 					.'<script type="text/javascript" src="//mfm-sourcefoundinc.netdna-ssl.com/mfm.js" defer="defer"></script>';
-			} else if (isset($IP)) {
+			} else if (!empty($IP)) {
 				return substr($content,0,$x)
 					.'<p class="memberonly">'.__($msg).'</p>';
 			} else {
 				return substr($content,0,$x)
-					.'<div class="memberonly"'.(isset($opt['nologin'])?'':' style="padding:20px;border:1px solid #ddd">')
+					.'<div class="memberonly"'.(isset($opt['nologin'])?'':' style="padding:40px 0;border-top:1px solid #ddd;border-bottom:1px solid #ddd">')
 						.'<p>'.__($msg).'</p>'
 						.(is_singular()&&!isset($opt['nologin'])?$SF_widget_login:'')
 					.'</div>';
