@@ -337,7 +337,8 @@ function sf_memberonly($content) {
 						$msg='The following content is not accessible for your account or your membership has expired';
 				}	
 				if (empty($IP)) {
-					setcookie('SFSF',' ',time()+8640000,'/');
+					if (!headers_sent())
+						setcookie('SFSF',' ',time()+8640000,'/');
 					wp_logout();
 					$msg='Session expired, please sign in again';
 				}
