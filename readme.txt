@@ -4,7 +4,7 @@ Donate link: http://memberfind.me
 Tags: memberfindme, membership management, membership, member login, billing, member access, member content
 Requires at least: 3.0
 Tested up to: 4.2.1
-Stable tag: 3.7
+Stable tag: 3.7.1
 License: GPL2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -122,3 +122,6 @@ When displaying a membership sign-up form or MemberFindMe form/cart for non-memb
 
 = 3.7 =
 * Improved error messages
+
+= 3.7.1 =
+* Fixes bug with not fully logging out user when session expired
