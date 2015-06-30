@@ -3,7 +3,7 @@
 Plugin Name: MemberFindMe Login Connector
 Plugin URI: http://memberfind.me
 Description: Connects MemberFindMe membership system with WordPress user accounts and login
-Version: 3.7.1
+Version: 3.7.2
 Author: SourceFound
 Author URI: http://memberfind.me
 License: GPL2
@@ -183,7 +183,7 @@ function sf_login() {
 		} else if ($rsp['response']['code']!=200||empty($rsp['body'])) {
 			$msg='Server error, please try again later';
 		} else if (($rsp=json_decode($rsp['body'],true))&&!empty($rsp['uid'])) {
-			$doc=array('nickname'=>$rsp['nam'],'user_nicename'=>$rsp['nam'],'display_name'=>$rsp['nam'],'user_pass'=>$pwd);
+			$doc=array('nickname'=>$rsp['nam'],'user_nicename'=>$rsp['nam'],'display_name'=>$rsp['nam']);
 			if (isset($rsp['url'])) $doc['user_url']=$rsp['url'];
 			$id=username_exists($rsp['uid']);
 			if (is_null($id)) {
@@ -192,11 +192,12 @@ function sf_login() {
 					$id=wp_create_user($rsp['uid'],$pwd);
 				$doc['show_admin_bar_front']='false';
 			} else {
-				wp_update_user(array('ID'=>$id,'user_email'=>$eml));
+				wp_update_user(array('ID'=>$id,'user_email'=>$eml)); // update email separately
 			}
 			if (!is_null($id)&&!is_wp_error($id)) {
 				$doc['ID']=$id;
-				wp_update_user($doc);
+				wp_update_user($doc); // update names separately
+				wp_update_user(array('ID'=>$id,'user_pass'=>$pwd)); // update password separately
 				update_user_meta($id,'SF_ID',$rsp['uid']);
 				setcookie('SFSF',rawurlencode($rsp['SF']),time()+8640000,'/');
 				if ($act=='sf_login') {
