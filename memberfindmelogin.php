@@ -3,7 +3,7 @@
 Plugin Name: MemberFindMe Login Connector
 Plugin URI: http://memberfind.me
 Description: Connects MemberFindMe membership system with WordPress user accounts and login
-Version: 3.7.2
+Version: 3.8
 Author: SourceFound
 Author URI: http://memberfind.me
 License: GPL2
@@ -186,7 +186,7 @@ function sf_login() {
 			$doc=array('nickname'=>$rsp['nam'],'user_nicename'=>$rsp['nam'],'display_name'=>$rsp['nam']);
 			if (isset($rsp['url'])) $doc['user_url']=$rsp['url'];
 			$id=username_exists($rsp['uid']);
-			if (is_null($id)) {
+			if (is_null($id)||$id===false) {
 				$id=wp_create_user($rsp['uid'],$pwd,$eml);
 				if (is_wp_error($id)&&$id->get_error_code()=='existing_user_email')
 					$id=wp_create_user($rsp['uid'],$pwd);
@@ -194,7 +194,7 @@ function sf_login() {
 			} else {
 				wp_update_user(array('ID'=>$id,'user_email'=>$eml)); // update email separately
 			}
-			if (!is_null($id)&&!is_wp_error($id)) {
+			if (!is_null($id)&&$id!==false&&!is_wp_error($id)) {
 				$doc['ID']=$id;
 				wp_update_user($doc); // update names separately
 				wp_update_user(array('ID'=>$id,'user_pass'=>$pwd)); // update password separately
