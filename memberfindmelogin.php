@@ -195,11 +195,11 @@ function sf_login() {
 				$doc['show_admin_bar_front']='false';
 			} else {
 				wp_update_user(array('ID'=>$id,'user_email'=>$eml)); // update email separately
+				wp_set_password($pwd,$id); // update password separately
 			}
 			if (!is_null($id)&&$id!==false&&!is_wp_error($id)) {
 				$doc['ID']=$id;
 				wp_update_user($doc); // update names separately
-				wp_set_password($pwd,$id); // update password separately
 				update_user_meta($id,'SF_ID',$rsp['uid']);
 				setcookie('SFSF',rawurlencode($rsp['SF']),time()+8640000,'/');
 				if ($act=='sf_login') {
