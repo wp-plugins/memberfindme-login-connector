@@ -137,5 +137,6 @@ When displaying a membership sign-up form or MemberFindMe form/cart for non-memb
 
 = 4.0 =
 * Fixes PHP 5.3+ errors with deprecated function split
+* Fixes warnings from ob_clean
 * Updated API calls
 * Displays appropriate message when member is not allowed access because of labels/folders vs. membership expiration
