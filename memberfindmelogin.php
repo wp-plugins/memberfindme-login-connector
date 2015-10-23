@@ -3,7 +3,7 @@
 Plugin Name: MemberFindMe Login Connector
 Plugin URI: http://memberfind.me
 Description: Connects MemberFindMe membership system with WordPress user accounts and login
-Version: 3.8.1
+Version: 4.0
 Author: SourceFound
 Author URI: http://memberfind.me
 License: GPL2
@@ -28,6 +28,7 @@ License: GPL2
 define('SF_WPL',3);
 
 function sf_mfl_init() {
+	global $current_user;
 	if (defined('DOING_AJAX')&&defined('WP_ADMIN')&&!empty($_REQUEST['action'])){
 		if ($_REQUEST['action']=='sf_login'){
 			sf_login();
@@ -36,11 +37,19 @@ function sf_mfl_init() {
 		} else if ($_REQUEST['action']=='sf_password') {
 			sf_password();
 		}
-	} else if (isset($_COOKIE['SFSF'])&&$_COOKIE['SFSF']!=' '&&!is_user_logged_in()) {
-		setcookie('SFSF',' ',time()+8640000,'/');
+	//} else if (isset($_COOKIE['SFSF'])&&$_COOKIE['SFSF']!=' '&&!is_user_logged_in()) {
+	//	setcookie('SFSF',' ',time()+8640000,'/');
+	} else if (is_user_logged_in()&&(empty($_COOKIE['SFSF'])||$_COOKIE['SFSF']==' ')&&($uid=get_user_meta(get_current_user_id(),'SF_ID',true))&&wp_get_current_user()->user_login==$uid) {
+		wp_clear_auth_cookie();
+		wp_set_current_user(0);
 	}
 }
 add_action('plugins_loaded','sf_mfl_init');
+
+function sf_mfl_clear_auth_cookie() {
+	setcookie('SFSF',' ',time()+8640000,'/');
+}
+add_action('clear_auth_cookie','sf_mfl_clear_auth_cookie');
 
 function sf_mfl_nocache_headers($headers) {
 	$headers['Cache-Control']='no-cache, must-revalidate, max-age=0, no-store';
@@ -176,7 +185,7 @@ function sf_login() {
 		$try=0;
 		for($try=0;!$try||(is_wp_error($rsp)&&$try<3);$try++) {
 			if ($try) usleep(100000);
-			$rsp=wp_remote_post('https://www.sourcefound.com/api',array('method'=>'POST','headers'=>array('from'=>$IP),'user-agent'=>$_SERVER['HTTP_USER_AGENT'],'body'=>array('fi'=>'usr','org'=>$set['org'],'eml'=>$eml,'pwd'=>$pwd)));
+			$rsp=wp_remote_post('https://api.memberfind.me/v1/usr',array('method'=>'POST','headers'=>array('from'=>$IP),'user-agent'=>$_SERVER['HTTP_USER_AGENT'],'body'=>array('org'=>$set['org'],'eml'=>$eml,'pwd'=>$pwd)));
 		}
 		if (is_wp_error($rsp)||empty($rsp['response'])) {
 			$msg='Network error, please try again later';
@@ -222,7 +231,7 @@ function sf_login() {
 		}
 	}
 	if (!empty($msg)) {
-		ob_clean();
+		if (ob_get_contents()) ob_clean();
 		echo $msg;
 		die();
 	}
@@ -234,7 +243,7 @@ function sf_logout() {
 		setcookie('SFSF',' ',time()+8640000,'/');
 		if (isset($_REQUEST['action'])&&$_REQUEST['action']=='sf_logout') {
 			wp_logout();
-			ob_clean();
+			if (ob_get_contents()) ob_clean();
 			echo 'OK';
 			die();
 		}
@@ -247,11 +256,11 @@ function sf_password() {
 		$IP=isset($_SERVER['HTTP_X_FORWARDED_FOR'])?$_SERVER['HTTP_X_FORWARDED_FOR']:$_SERVER['REMOTE_ADDR'];
 		for($try=0;!$try||(is_wp_error($rsp)&&$try<3);$try++) {
 			if ($try) usleep(100000);
-			$rsp=wp_remote_get('https://www.sourcefound.com/api?fi=usr&Z='.time().'&org='.$set['org'].'&pwd&eml='.urlencode($_POST['user_login']).(empty($_POST['uid'])?'':'&uid='.($_POST['uid'])),array('headers'=>array('from'=>$IP),'user-agent'=>$_SERVER['HTTP_USER_AGENT']));
+			$rsp=wp_remote_get('https://api.memberfind.me/v1/usr?Z='.time().'&org='.$set['org'].'&pwd&eml='.urlencode($_POST['user_login']).(empty($_POST['uid'])?'':'&uid='.($_POST['uid'])),array('headers'=>array('from'=>$IP),'user-agent'=>$_SERVER['HTTP_USER_AGENT']));
 		}
 		if (!is_wp_error($rsp)&&empty($rsp['body'])) {
 			if ((isset($_REQUEST['action'])&&$_REQUEST['action']=='sf_password')) {
-				ob_clean();
+				if (ob_get_contents()) ob_clean();
 				echo 'OK';
 			} else
 				wp_safe_redirect(empty($_REQUEST['redirect_to'])?'wp-login.php?checkemail=confirm':$_REQUEST['redirect_to']);
@@ -318,15 +327,15 @@ function sf_memberonly($content) {
 					$IP=isset($_SERVER['HTTP_X_FORWARDED_FOR'])?$_SERVER['HTTP_X_FORWARDED_FOR']:$_SERVER['REMOTE_ADDR'];
 					$lbl=array();
 					if (!empty($opt['label'])||!empty($opt['level'])) {
-						$arr=split(',',empty($opt['label'])?$opt['level']:$opt['label']);
+						$arr=explode(',',empty($opt['label'])?$opt['level']:$opt['label']);
 						foreach ($arr as $val) if (trim(urldecode($val))) $lbl[]=urlencode(trim(urldecode($val)));
 					} else if (!empty($opt['folder'])||!empty($opt['folders'])) {
-						$arr=split(',',empty($opt['folder'])?$opt['folders']:$opt['folder']);
+						$arr=explode(',',empty($opt['folder'])?$opt['folders']:$opt['folder']);
 						foreach ($arr as $val) if (trim(urldecode($val))) $dek[]=urlencode(trim(urldecode($val)));
 					}
 					do {
 						if (empty($try)) $try=0; else usleep(100000);
-						$rsp=wp_remote_get('https://www.sourcefound.com/fi/usr?org='.$set['org'].'&sfsf='.$_COOKIE['SFSF'].'&lbl='.implode(',',$lbl).(empty($dek)?'':'&dek='.implode(',',$dek)),array('headers'=>array('from'=>$IP),'user-agent'=>$_SERVER['HTTP_USER_AGENT']));
+						$rsp=wp_remote_get("https://api.memberfind.me/v1/lbl?org=".$set['org'].'&sfsf='.$_COOKIE['SFSF'].'&lbl='.implode(',',$lbl).(empty($dek)?'':'&dek='.implode(',',$dek)),array('headers'=>array('from'=>$IP),'user-agent'=>$_SERVER['HTTP_USER_AGENT']));
 					} while (is_wp_error($rsp)&&($try++)<3);
 					if (is_wp_error($rsp)||empty($rsp['response']))
 						$err='Network error, please try again later';
@@ -334,10 +343,12 @@ function sf_memberonly($content) {
 						$IP=false;
 					else if ($rsp['response']['code']!=200||empty($rsp['body']))
 						$err='Server error, please try again later';
-					else if (($rsp=json_decode($rsp['body'],true))&&count($rsp))
+					else if (($rsp=json_decode($rsp['body'],true))&&!empty($rsp['lbl']))
 						return substr_replace($content,'',$x,$y-$x+1);
+					else if (!empty($rsp['end']))
+						$msg='The following content is not accessible because your membership has expired';
 					else
-						$msg='The following content is not accessible for your account or your membership has expired';
+						$msg='The following content is not accessible for your account';
 				}	
 				if (empty($IP)) {
 					if (!headers_sent())

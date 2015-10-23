@@ -3,8 +3,8 @@ Contributors: sourcefound
 Donate link: http://memberfind.me
 Tags: memberfindme, membership management, membership, member login, billing, member access, member content
 Requires at least: 3.0
-Tested up to: 4.2.1
-Stable tag: 3.8.1
+Tested up to: 4.3.1
+Stable tag: 4.0
 License: GPL2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -134,3 +134,8 @@ When displaying a membership sign-up form or MemberFindMe form/cart for non-memb
 
 = 3.8.1 =
 * Eliminates password changed email when logging in with WordPress 4.3
+
+= 4.0 =
+* Fixes PHP 5.3+ errors with deprecated function split
+* Updated API calls
+* Displays appropriate message when member is not allowed access because of labels/folders vs. membership expiration
